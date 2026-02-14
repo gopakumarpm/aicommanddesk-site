@@ -1,0 +1,108 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import NewsletterCTA from '../components/NewsletterCTA.astro';
+---
+
+<BaseLayout
+  title="About"
+  description="AICommandDesk helps managers and professionals master AI productivity — no coding required."
+>
+  <!-- Header -->
+  <section class="bg-gradient-to-br from-navy-500 to-electric-600 text-white py-16">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <h1 class="text-4xl md:text-5xl font-extrabold">About AICommandDesk</h1>
+      <p class="mt-4 text-lg text-gray-300 max-w-2xl mx-auto">
+        Bridging the gap between AI hype and practical business results.
+      </p>
+    </div>
+  </section>
+
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+    <!-- Mission -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold text-navy-500 dark:text-white mb-6">Our Mission</h2>
+      <div class="prose prose-lg dark:prose-dark max-w-none">
+        <p>
+          AI is transforming every industry. But most AI content falls into two camps: either too technical (written for developers) or too vague (written for hype). Neither helps a busy manager who needs to <strong>actually use AI at work</strong>.
+        </p>
+        <p>
+          That is why AICommandDesk exists. We create practical, no-code AI guides specifically for <strong>managers, consultants, team leads, and professionals</strong> who want to:
+        </p>
+        <ul>
+          <li>Automate repetitive tasks and save hours every week</li>
+          <li>Use AI tools to make better decisions faster</li>
+          <li>Lead their teams into the AI era with confidence</li>
+          <li>Stay ahead of the curve without learning to code</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Who This Is For -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold text-navy-500 dark:text-white mb-6">Who This Is For</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="card p-6">
+          <h3 class="font-bold text-navy-500 dark:text-white mb-2">Managers & Team Leads</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            You manage people and processes. You need AI to help you do both better — without becoming a programmer.
+          </p>
+        </div>
+        <div class="card p-6">
+          <h3 class="font-bold text-navy-500 dark:text-white mb-2">Consultants & Freelancers</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            You sell your expertise. AI can multiply your output and let you deliver more value to every client.
+          </p>
+        </div>
+        <div class="card p-6">
+          <h3 class="font-bold text-navy-500 dark:text-white mb-2">Small Business Owners</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            You wear many hats. AI can automate the tasks you should not be doing manually anymore.
+          </p>
+        </div>
+        <div class="card p-6">
+          <h3 class="font-bold text-navy-500 dark:text-white mb-2">Professionals (Any Industry)</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            Whether you are in finance, HR, marketing, or operations — AI can make you significantly more productive.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- What Makes Us Different -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold text-navy-500 dark:text-white mb-6">What Makes Us Different</h2>
+      <div class="space-y-6">
+        <div class="flex items-start gap-4">
+          <div class="w-10 h-10 bg-electric-50 dark:bg-navy-400 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+            <svg class="w-5 h-5 text-electric-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          </div>
+          <div>
+            <h3 class="font-bold text-navy-500 dark:text-white">Zero Code Required</h3>
+            <p class="text-gray-600 dark:text-gray-400 mt-1">Every tool, strategy, and tutorial works without any programming knowledge. If you can use a spreadsheet, you can use what we teach.</p>
+          </div>
+        </div>
+        <div class="flex items-start gap-4">
+          <div class="w-10 h-10 bg-electric-50 dark:bg-navy-400 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+            <svg class="w-5 h-5 text-electric-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          </div>
+          <div>
+            <h3 class="font-bold text-navy-500 dark:text-white">Real Results, Not Hype</h3>
+            <p class="text-gray-600 dark:text-gray-400 mt-1">We test every tool and strategy before recommending it. No sponsored content disguised as reviews. No inflated promises.</p>
+          </div>
+        </div>
+        <div class="flex items-start gap-4">
+          <div class="w-10 h-10 bg-electric-50 dark:bg-navy-400 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+            <svg class="w-5 h-5 text-electric-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          </div>
+          <div>
+            <h3 class="font-bold text-navy-500 dark:text-white">Built for Decision Makers</h3>
+            <p class="text-gray-600 dark:text-gray-400 mt-1">Our content is designed for people who lead teams, manage budgets, and make strategic decisions — not for hobbyists or developers.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Newsletter -->
+    <NewsletterCTA variant="card" title="Join the AI Command Desk Community" description="Get weekly practical AI tips for managers and professionals. Free forever." />
+  </div>
+</BaseLayout>

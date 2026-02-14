@@ -1,0 +1,38 @@
+backend:
+  name: git-gateway
+  branch: main
+
+media_folder: "public/images/uploads"
+public_folder: "/images/uploads"
+
+publish_mode: editorial_workflow
+
+collections:
+  - name: "blog"
+    label: "Blog Posts"
+    folder: "src/content/blog"
+    create: true
+    slug: "{{slug}}"
+    extension: "md"
+    format: "frontmatter"
+    fields:
+      - { label: "Title", name: "title", widget: "string" }
+      - { label: "Description", name: "description", widget: "text" }
+      - { label: "Publish Date", name: "date", widget: "datetime", date_format: "YYYY-MM-DD", time_format: false }
+      - { label: "Author", name: "author", widget: "string", default: "AI Command Desk" }
+      - label: "Category"
+        name: "category"
+        widget: "select"
+        options:
+          - "AI Tools"
+          - "AI Strategy"
+          - "AI Automation"
+          - "AI for Teams"
+          - "Case Studies"
+          - "Tutorials"
+      - { label: "Tags", name: "tags", widget: "list", default: [] }
+      - { label: "Featured Image", name: "image", widget: "image", required: false }
+      - { label: "Featured Image Alt", name: "imageAlt", widget: "string", required: false }
+      - { label: "Featured Post", name: "featured", widget: "boolean", default: false }
+      - { label: "Draft", name: "draft", widget: "boolean", default: false }
+      - { label: "Body", name: "body", widget: "markdown" }

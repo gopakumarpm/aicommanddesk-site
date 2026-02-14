@@ -1,0 +1,38 @@
+---
+---
+
+<div id="cookie-consent" class="hidden fixed bottom-0 left-0 right-0 z-50 p-4 bg-white dark:bg-navy-600 border-t border-gray-200 dark:border-navy-400 shadow-2xl">
+  <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+    <p class="text-sm text-gray-600 dark:text-gray-300 text-center sm:text-left">
+      We use cookies to improve your experience. By continuing to visit this site you agree to our use of cookies.
+      <a href="/privacy-policy" class="text-electric-500 hover:underline">Learn more</a>
+    </p>
+    <div class="flex gap-3 flex-shrink-0">
+      <button id="cookie-decline" class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors">
+        Decline
+      </button>
+      <button id="cookie-accept" class="px-5 py-2 text-sm font-semibold text-white bg-electric-500 rounded-lg hover:bg-electric-600 transition-colors">
+        Accept
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const banner = document.getElementById('cookie-consent');
+  const consent = localStorage.getItem('cookie-consent');
+
+  if (!consent && banner) {
+    banner.classList.remove('hidden');
+  }
+
+  document.getElementById('cookie-accept')?.addEventListener('click', () => {
+    localStorage.setItem('cookie-consent', 'accepted');
+    banner?.classList.add('hidden');
+  });
+
+  document.getElementById('cookie-decline')?.addEventListener('click', () => {
+    localStorage.setItem('cookie-consent', 'declined');
+    banner?.classList.add('hidden');
+  });
+</script>

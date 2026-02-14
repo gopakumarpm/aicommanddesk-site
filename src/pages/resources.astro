@@ -1,0 +1,177 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import NewsletterCTA from '../components/NewsletterCTA.astro';
+
+const tools = [
+  {
+    name: 'ChatGPT (OpenAI)',
+    category: 'AI Assistant',
+    description: 'The most versatile AI assistant for writing, analysis, brainstorming, and problem-solving. Perfect for managers who need a thinking partner.',
+    pricing: 'Free / $20/month (Plus)',
+    url: 'https://chat.openai.com',
+    badge: 'Essential',
+  },
+  {
+    name: 'Claude (Anthropic)',
+    category: 'AI Assistant',
+    description: 'Excellent for long-form analysis, document review, and nuanced business writing. Handles complex instructions exceptionally well.',
+    pricing: 'Free / $20/month (Pro)',
+    url: 'https://claude.ai',
+    badge: 'Essential',
+  },
+  {
+    name: 'Notion AI',
+    category: 'Productivity',
+    description: 'AI built into your workspace. Summarize notes, generate action items, draft content — all within Notion.',
+    pricing: '$10/month add-on',
+    url: 'https://notion.so',
+    badge: 'Recommended',
+  },
+  {
+    name: 'Gamma',
+    category: 'Presentations',
+    description: 'Create beautiful presentations in minutes using AI. Just describe what you need and it generates polished slides.',
+    pricing: 'Free tier available',
+    url: 'https://gamma.app',
+    badge: 'Recommended',
+  },
+  {
+    name: 'Zapier',
+    category: 'Automation',
+    description: 'Connect your apps and automate workflows without coding. The backbone of no-code business automation.',
+    pricing: 'Free / from $19.99/month',
+    url: 'https://zapier.com',
+    badge: 'Essential',
+  },
+  {
+    name: 'Otter.ai',
+    category: 'Meetings',
+    description: 'AI-powered meeting transcription and summarization. Never take manual meeting notes again.',
+    pricing: 'Free / from $16.99/month',
+    url: 'https://otter.ai',
+    badge: 'Recommended',
+  },
+  {
+    name: 'Grammarly',
+    category: 'Writing',
+    description: 'AI writing assistant that improves clarity, tone, and professionalism in all your business communications.',
+    pricing: 'Free / $12/month (Premium)',
+    url: 'https://grammarly.com',
+    badge: 'Essential',
+  },
+  {
+    name: 'Perplexity AI',
+    category: 'Research',
+    description: 'AI-powered research engine. Get sourced answers to complex business questions in seconds.',
+    pricing: 'Free / $20/month (Pro)',
+    url: 'https://perplexity.ai',
+    badge: 'Recommended',
+  },
+];
+
+const badgeColors: Record<string, string> = {
+  'Essential': 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+  'Recommended': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+};
+---
+
+<BaseLayout
+  title="Resources"
+  description="Curated AI tools, templates, and resources for managers and professionals."
+>
+  <!-- Header -->
+  <section class="bg-gradient-to-br from-navy-500 to-electric-600 text-white py-16">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <h1 class="text-4xl md:text-5xl font-extrabold">Resources & Tools</h1>
+      <p class="mt-4 text-lg text-gray-300 max-w-2xl mx-auto">
+        Curated AI tools and resources we actually use and recommend. Updated regularly.
+      </p>
+    </div>
+  </section>
+
+  <!-- Affiliate Disclosure -->
+  <div class="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+      <p class="text-sm text-amber-800 dark:text-amber-200 text-center">
+        Some links on this page are affiliate links. We may earn a commission at no extra cost to you.
+        <a href="/affiliate-disclosure" class="underline font-medium">Learn more</a>
+      </p>
+    </div>
+  </div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+    <!-- AI Tools -->
+    <section class="mb-16">
+      <h2 class="section-heading mb-4">AI Tools We Recommend</h2>
+      <p class="section-subheading mb-10">Every tool listed here has been personally tested. We only recommend what works.</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {tools.map((tool) => (
+          <div class="card p-6">
+            <div class="flex items-start justify-between mb-3">
+              <div>
+                <h3 class="font-bold text-navy-500 dark:text-white">{tool.name}</h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{tool.category}</p>
+              </div>
+              <span class={`text-xs font-medium px-2.5 py-1 rounded-full ${badgeColors[tool.badge]}`}>
+                {tool.badge}
+              </span>
+            </div>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">{tool.description}</p>
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-navy-500 dark:text-gray-300">{tool.pricing}</span>
+              <a
+                href={tool.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-sm text-electric-500 hover:text-electric-600 font-medium"
+              >
+                Visit &rarr;
+              </a>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- Free Resources -->
+    <section class="mb-16">
+      <h2 class="section-heading mb-4">Free Resources</h2>
+      <p class="section-subheading mb-10">Download these free resources to accelerate your AI journey.</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="card p-6 text-center">
+          <div class="w-14 h-14 bg-electric-50 dark:bg-navy-400 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <svg class="w-7 h-7 text-electric-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          </div>
+          <h3 class="font-bold text-navy-500 dark:text-white">AI Prompt Library</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mt-2 mb-4">50+ ready-to-use prompts for managers and professionals.</p>
+          <span class="text-sm text-gray-400 italic">Coming Soon</span>
+        </div>
+        <div class="card p-6 text-center">
+          <div class="w-14 h-14 bg-electric-50 dark:bg-navy-400 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <svg class="w-7 h-7 text-electric-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
+          </div>
+          <h3 class="font-bold text-navy-500 dark:text-white">AI Adoption Checklist</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mt-2 mb-4">Step-by-step checklist for introducing AI to your team.</p>
+          <span class="text-sm text-gray-400 italic">Coming Soon</span>
+        </div>
+        <div class="card p-6 text-center">
+          <div class="w-14 h-14 bg-electric-50 dark:bg-navy-400 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <svg class="w-7 h-7 text-electric-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          </div>
+          <h3 class="font-bold text-navy-500 dark:text-white">ROI Calculator Template</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mt-2 mb-4">Calculate the ROI of AI tools for your business.</p>
+          <span class="text-sm text-gray-400 italic">Coming Soon</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Newsletter -->
+    <NewsletterCTA
+      variant="card"
+      title="Get Notified When New Resources Launch"
+      description="Be the first to know when we release new tools, templates, and guides."
+    />
+  </div>
+</BaseLayout>

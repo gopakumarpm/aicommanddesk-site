@@ -1,0 +1,102 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import NewsletterCTA from '../components/NewsletterCTA.astro';
+---
+
+<BaseLayout
+  title="Start Here"
+  description="New to AICommandDesk? Start here for a guided journey into practical AI productivity."
+>
+  <!-- Header -->
+  <section class="bg-gradient-to-br from-navy-500 to-electric-600 text-white py-16">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <h1 class="text-4xl md:text-5xl font-extrabold">Start Here</h1>
+      <p class="mt-4 text-lg text-gray-300 max-w-2xl mx-auto">
+        New here? This is your roadmap to mastering AI at work — step by step.
+      </p>
+    </div>
+  </section>
+
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+    <!-- Welcome -->
+    <section class="mb-16">
+      <div class="prose prose-lg dark:prose-dark max-w-none">
+        <p>
+          Welcome to AICommandDesk. Whether you are a manager, consultant, business owner, or professional — this site will help you leverage AI to work smarter, automate tasks, and lead more effectively.
+        </p>
+        <p>
+          <strong>No coding. No jargon. Just practical results.</strong>
+        </p>
+      </div>
+    </section>
+
+    <!-- Step-by-step Journey -->
+    <section class="mb-16">
+      <h2 class="text-2xl font-bold text-navy-500 dark:text-white mb-8">Your AI Learning Path</h2>
+
+      <!-- Step 1 -->
+      <div class="relative pl-10 pb-12 border-l-2 border-electric-200 dark:border-electric-800">
+        <div class="absolute left-0 top-0 -translate-x-1/2 w-8 h-8 bg-electric-500 rounded-full flex items-center justify-center text-white font-bold text-sm">1</div>
+        <div class="card p-6">
+          <h3 class="font-bold text-lg text-navy-500 dark:text-white">Understand What AI Can Do for You</h3>
+          <p class="text-gray-600 dark:text-gray-400 mt-2">Start with the basics. Learn what AI actually means for your daily work and where it creates the most value.</p>
+          <div class="mt-4 space-y-2">
+            <a href="/blog/how-to-use-ai-without-coding" class="block text-electric-500 hover:text-electric-600 text-sm font-medium">
+              &rarr; How to Use AI Without Writing a Single Line of Code
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="relative pl-10 pb-12 border-l-2 border-electric-200 dark:border-electric-800">
+        <div class="absolute left-0 top-0 -translate-x-1/2 w-8 h-8 bg-electric-500 rounded-full flex items-center justify-center text-white font-bold text-sm">2</div>
+        <div class="card p-6">
+          <h3 class="font-bold text-lg text-navy-500 dark:text-white">Discover the Best AI Tools</h3>
+          <p class="text-gray-600 dark:text-gray-400 mt-2">Find the right tools for your role. We test and review the best options so you don't waste time or money.</p>
+          <div class="mt-4 space-y-2">
+            <a href="/blog/5-ai-tools-every-manager-should-use-2026" class="block text-electric-500 hover:text-electric-600 text-sm font-medium">
+              &rarr; 5 AI Tools Every Manager Should Be Using in 2026
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="relative pl-10 pb-12 border-l-2 border-electric-200 dark:border-electric-800">
+        <div class="absolute left-0 top-0 -translate-x-1/2 w-8 h-8 bg-electric-500 rounded-full flex items-center justify-center text-white font-bold text-sm">3</div>
+        <div class="card p-6">
+          <h3 class="font-bold text-lg text-navy-500 dark:text-white">Make the Business Case</h3>
+          <p class="text-gray-600 dark:text-gray-400 mt-2">Learn where AI saves money versus where hiring is better. Make smart decisions for your team and budget.</p>
+          <div class="mt-4 space-y-2">
+            <a href="/blog/ai-vs-hiring-where-ai-saves-money" class="block text-electric-500 hover:text-electric-600 text-sm font-medium">
+              &rarr; AI vs Hiring: Where AI Actually Saves Your Business Money
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="relative pl-10">
+        <div class="absolute left-0 top-0 -translate-x-1/2 w-8 h-8 bg-electric-500 rounded-full flex items-center justify-center text-white font-bold text-sm">4</div>
+        <div class="card p-6">
+          <h3 class="font-bold text-lg text-navy-500 dark:text-white">Go Deeper</h3>
+          <p class="text-gray-600 dark:text-gray-400 mt-2">Explore specific categories based on what matters most to you.</p>
+          <div class="mt-4 grid grid-cols-2 gap-2">
+            <a href="/blog?category=AI+Tools" class="text-electric-500 hover:text-electric-600 text-sm font-medium">&rarr; AI Tools</a>
+            <a href="/blog?category=AI+Strategy" class="text-electric-500 hover:text-electric-600 text-sm font-medium">&rarr; AI Strategy</a>
+            <a href="/blog?category=AI+Automation" class="text-electric-500 hover:text-electric-600 text-sm font-medium">&rarr; Automation</a>
+            <a href="/blog?category=Tutorials" class="text-electric-500 hover:text-electric-600 text-sm font-medium">&rarr; Tutorials</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Newsletter -->
+    <NewsletterCTA
+      variant="card"
+      title="Get Weekly AI Tips — For Free"
+      description="Join managers and professionals who get practical AI insights every week. No coding. No jargon."
+    />
+  </div>
+</BaseLayout>

@@ -1,0 +1,157 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import BlogCard from '../components/BlogCard.astro';
+import NewsletterCTA from '../components/NewsletterCTA.astro';
+import { getCollection } from 'astro:content';
+
+const allPosts = (await getCollection('blog', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+const featuredPosts = allPosts.filter(p => p.data.featured);
+const latestPosts = allPosts.slice(0, 6);
+
+const categories = [
+  { name: 'AI Tools', icon: '&#9881;', description: 'Best AI tools for professionals — tested and reviewed' },
+  { name: 'AI Strategy', icon: '&#9813;', description: 'Strategic frameworks for AI adoption in your team' },
+  { name: 'AI Automation', icon: '&#9889;', description: 'Automate repetitive tasks without writing code' },
+  { name: 'AI for Teams', icon: '&#9734;', description: 'Lead your team into the AI era effectively' },
+  { name: 'Case Studies', icon: '&#128200;', description: 'Real-world examples of AI saving time and money' },
+  { name: 'Tutorials', icon: '&#128214;', description: 'Step-by-step guides anyone can follow' },
+];
+---
+
+<BaseLayout title="Home">
+  <!-- Hero Section -->
+  <section class="relative overflow-hidden bg-gradient-to-br from-navy-500 via-navy-500 to-electric-600 text-white">
+    <div class="absolute inset-0 opacity-10">
+      <div class="absolute top-20 left-10 w-72 h-72 bg-electric-400 rounded-full blur-3xl"></div>
+      <div class="absolute bottom-10 right-10 w-96 h-96 bg-electric-300 rounded-full blur-3xl"></div>
+    </div>
+    <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32">
+      <div class="max-w-3xl">
+        <p class="text-electric-300 font-semibold text-sm uppercase tracking-wider mb-4">
+          AI Productivity for Professionals
+        </p>
+        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight">
+          Master AI.<br/>
+          Lead Smarter.<br/>
+          <span class="text-electric-300">No Coding Required.</span>
+        </h1>
+        <p class="mt-6 text-lg md:text-xl text-gray-300 max-w-2xl leading-relaxed">
+          Practical AI strategies, tools, and automation for managers and professionals who want results — not a computer science degree.
+        </p>
+        <div class="mt-10 flex flex-col sm:flex-row gap-4">
+          <a href="/start-here" class="btn-primary text-base px-8 py-4">
+            Start Here &rarr;
+          </a>
+          <a href="/blog" class="btn-secondary border-white/30 text-white hover:bg-white/10 text-base px-8 py-4">
+            Read the Blog
+          </a>
+        </div>
+        <!-- Social proof -->
+        <div class="mt-12 flex items-center gap-6 text-sm text-gray-400">
+          <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-electric-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg>
+            <span>Free weekly newsletter</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-electric-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg>
+            <span>No coding needed</span>
+          </div>
+          <div class="hidden sm:flex items-center gap-2">
+            <svg class="w-5 h-5 text-electric-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg>
+            <span>Actionable guides</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Categories Section -->
+  <section class="py-16 md:py-24 bg-gray-50 dark:bg-navy-600">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-12">
+        <h2 class="section-heading">What You Will Learn</h2>
+        <p class="section-subheading mx-auto">Explore practical AI knowledge organized for busy professionals</p>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {categories.map((cat) => (
+          <a href={`/blog?category=${encodeURIComponent(cat.name)}`} class="card p-6 group hover:-translate-y-1">
+            <div class="text-3xl mb-3" set:html={cat.icon} />
+            <h3 class="font-bold text-navy-500 dark:text-white group-hover:text-electric-500 transition-colors">
+              {cat.name}
+            </h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">{cat.description}</p>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Latest Posts -->
+  <section class="py-16 md:py-24">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between mb-12">
+        <div>
+          <h2 class="section-heading">Latest Articles</h2>
+          <p class="section-subheading">Fresh insights to help you work smarter with AI</p>
+        </div>
+        <a href="/blog" class="hidden sm:flex items-center text-electric-500 hover:text-electric-600 font-medium transition-colors">
+          View all
+          <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {latestPosts.map((post) => (
+          <BlogCard
+            title={post.data.title}
+            description={post.data.description}
+            date={post.data.date}
+            category={post.data.category}
+            slug={post.slug}
+            featured={post.data.featured}
+          />
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Newsletter Section -->
+  <NewsletterCTA variant="banner" />
+
+  <!-- About Preview -->
+  <section class="py-16 md:py-24">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="max-w-3xl mx-auto text-center">
+        <h2 class="section-heading">Why AICommandDesk?</h2>
+        <p class="text-gray-600 dark:text-gray-400 mt-6 text-lg leading-relaxed">
+          Most AI content is either too technical or too vague. AICommandDesk bridges the gap — giving managers and professionals <strong class="text-navy-500 dark:text-white">real, actionable AI strategies</strong> they can use today.
+        </p>
+        <div class="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-8">
+          <div class="text-center">
+            <div class="w-14 h-14 bg-electric-50 dark:bg-navy-400 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <svg class="w-7 h-7 text-electric-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            </div>
+            <h3 class="font-bold text-navy-500 dark:text-white">No Coding</h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Every guide works without any programming knowledge</p>
+          </div>
+          <div class="text-center">
+            <div class="w-14 h-14 bg-electric-50 dark:bg-navy-400 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <svg class="w-7 h-7 text-electric-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <h3 class="font-bold text-navy-500 dark:text-white">Battle-Tested</h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Real-world tested strategies, not theoretical fluff</p>
+          </div>
+          <div class="text-center">
+            <div class="w-14 h-14 bg-electric-50 dark:bg-navy-400 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <svg class="w-7 h-7 text-electric-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <h3 class="font-bold text-navy-500 dark:text-white">Save Time</h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Automate hours of work every single week</p>
+          </div>
+        </div>
+        <a href="/about" class="btn-primary mt-10">Learn More About Us &rarr;</a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

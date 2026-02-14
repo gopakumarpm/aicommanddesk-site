@@ -1,0 +1,142 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import BlogCard from '../../components/BlogCard.astro';
+import NewsletterCTA from '../../components/NewsletterCTA.astro';
+import { getCollection } from 'astro:content';
+
+const allPosts = (await getCollection('blog', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+const categories = ['All', 'AI Tools', 'AI Strategy', 'AI Automation', 'AI for Teams', 'Case Studies', 'Tutorials'];
+---
+
+<BaseLayout
+  title="Blog"
+  description="Practical AI guides, tools, and strategies for managers and professionals. No coding required."
+>
+  <!-- Page Header -->
+  <section class="bg-gradient-to-br from-navy-500 to-electric-600 text-white py-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <h1 class="text-4xl md:text-5xl font-extrabold">The Blog</h1>
+      <p class="mt-4 text-lg text-gray-300 max-w-2xl mx-auto">
+        Practical AI insights for managers and professionals. Actionable. No coding. No jargon.
+      </p>
+    </div>
+  </section>
+
+  <!-- Category Filter -->
+  <section class="border-b border-gray-200 dark:border-navy-400 bg-white dark:bg-navy-500 sticky top-16 md:top-20 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center gap-2 py-4 overflow-x-auto scrollbar-hide" id="category-filters">
+        {categories.map((cat) => (
+          <button
+            class="category-btn px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all border border-gray-200 dark:border-navy-400 text-gray-600 dark:text-gray-300 hover:border-electric-500 hover:text-electric-500"
+            data-category={cat}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Search -->
+  <section class="py-6 bg-gray-50 dark:bg-navy-600">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="relative max-w-md">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        <input
+          type="text"
+          id="search-input"
+          placeholder="Search articles..."
+          class="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 dark:border-navy-400 dark:bg-navy-500 dark:text-white focus:outline-none focus:ring-2 focus:ring-electric-500 focus:border-transparent"
+        />
+      </div>
+    </div>
+  </section>
+
+  <!-- Blog Grid -->
+  <section class="py-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="blog-grid">
+        {allPosts.map((post) => (
+          <div class="blog-item" data-category={post.data.category} data-title={post.data.title.toLowerCase()}>
+            <BlogCard
+              title={post.data.title}
+              description={post.data.description}
+              date={post.data.date}
+              category={post.data.category}
+              slug={post.slug}
+              featured={post.data.featured}
+            />
+          </div>
+        ))}
+      </div>
+
+      <!-- Empty State -->
+      <div id="no-results" class="hidden text-center py-16">
+        <p class="text-gray-500 dark:text-gray-400 text-lg">No articles found. Try a different search or category.</p>
+      </div>
+
+      <!-- Newsletter between posts -->
+      <div class="mt-12">
+        <NewsletterCTA variant="card" />
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  // Category filter
+  const buttons = document.querySelectorAll('.category-btn');
+  const items = document.querySelectorAll('.blog-item');
+  const noResults = document.getElementById('no-results');
+  const searchInput = document.getElementById('search-input') as HTMLInputElement;
+
+  let activeCategory = 'All';
+  let searchQuery = '';
+
+  function filterPosts() {
+    let visible = 0;
+    items.forEach((item) => {
+      const el = item as HTMLElement;
+      const cat = el.dataset.category || '';
+      const title = el.dataset.title || '';
+      const matchesCat = activeCategory === 'All' || cat === activeCategory;
+      const matchesSearch = !searchQuery || title.includes(searchQuery.toLowerCase());
+      if (matchesCat && matchesSearch) {
+        el.style.display = '';
+        visible++;
+      } else {
+        el.style.display = 'none';
+      }
+    });
+    if (noResults) {
+      noResults.classList.toggle('hidden', visible > 0);
+    }
+  }
+
+  buttons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      activeCategory = (btn as HTMLElement).dataset.category || 'All';
+      buttons.forEach((b) => {
+        b.classList.remove('bg-electric-500', 'text-white', 'border-electric-500');
+        b.classList.add('text-gray-600', 'dark:text-gray-300', 'border-gray-200', 'dark:border-navy-400');
+      });
+      btn.classList.add('bg-electric-500', 'text-white', 'border-electric-500');
+      btn.classList.remove('text-gray-600', 'dark:text-gray-300', 'border-gray-200', 'dark:border-navy-400');
+      filterPosts();
+    });
+  });
+
+  // Set "All" active by default
+  buttons[0]?.classList.add('bg-electric-500', 'text-white', 'border-electric-500');
+  buttons[0]?.classList.remove('text-gray-600', 'dark:text-gray-300', 'border-gray-200', 'dark:border-navy-400');
+
+  searchInput?.addEventListener('input', () => {
+    searchQuery = searchInput.value;
+    filterPosts();
+  });
+</script>

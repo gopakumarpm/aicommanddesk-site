@@ -1,0 +1,63 @@
+---
+interface Props {
+  variant?: 'inline' | 'card' | 'banner';
+  title?: string;
+  description?: string;
+}
+
+const {
+  variant = 'card',
+  title = 'Get Smarter with AI — Every Week',
+  description = 'Join 1,000+ managers and professionals getting practical AI tips. No coding. No jargon. Just results you can apply today.',
+} = Astro.props;
+---
+
+{variant === 'banner' && (
+  <section class="bg-gradient-to-r from-navy-500 to-electric-600 py-12">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <h3 class="text-2xl md:text-3xl font-bold text-white mb-3">{title}</h3>
+      <p class="text-electric-100 mb-6 max-w-xl mx-auto">{description}</p>
+      <form class="flex flex-col sm:flex-row gap-3 max-w-md mx-auto" data-netlify="true" name="banner-newsletter">
+        <input
+          type="email"
+          name="email"
+          placeholder="Your work email"
+          required
+          class="flex-1 px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent backdrop-blur"
+        />
+        <button type="submit" class="px-6 py-3 bg-white text-electric-600 font-semibold rounded-lg hover:bg-gray-100 transition-all shadow-md whitespace-nowrap">
+          Subscribe Free
+        </button>
+      </form>
+      <p class="text-xs text-electric-200 mt-3">Free forever. Unsubscribe anytime.</p>
+    </div>
+  </section>
+)}
+
+{variant === 'card' && (
+  <div class="bg-gradient-to-br from-electric-50 to-blue-50 dark:from-navy-600 dark:to-navy-400 rounded-xl p-8 border border-electric-100 dark:border-navy-300">
+    <h3 class="text-xl font-bold text-navy-500 dark:text-white mb-2">{title}</h3>
+    <p class="text-gray-600 dark:text-gray-400 text-sm mb-5">{description}</p>
+    <form class="flex flex-col sm:flex-row gap-3" data-netlify="true" name="card-newsletter">
+      <input
+        type="email"
+        name="email"
+        placeholder="Enter your email"
+        required
+        class="newsletter-input flex-1"
+      />
+      <button type="submit" class="btn-primary whitespace-nowrap">Subscribe</button>
+    </form>
+  </div>
+)}
+
+{variant === 'inline' && (
+  <div class="my-8 p-6 bg-gray-50 dark:bg-navy-600 rounded-lg border border-gray-200 dark:border-navy-400">
+    <p class="font-semibold text-navy-500 dark:text-white mb-1">{title}</p>
+    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">{description}</p>
+    <form class="flex flex-col sm:flex-row gap-2" data-netlify="true" name="inline-newsletter">
+      <input type="email" name="email" placeholder="Your email" required class="newsletter-input flex-1 text-sm" />
+      <button type="submit" class="btn-primary text-sm py-2">Subscribe</button>
+    </form>
+  </div>
+)}
