@@ -62,7 +62,7 @@ export default {
         },
         dark: {
           css: {
-            color: theme('colors.gray.300'),
+            color: theme('colors.white'),
             a: {
               color: theme('colors.electric.400'),
               '&:hover': {
@@ -70,7 +70,13 @@ export default {
               },
             },
             'h1, h2, h3, h4': {
-              color: theme('colors.gray.100'),
+              color: theme('colors.white'),
+            },
+            'p, li, ol, ul, blockquote': {
+              color: theme('colors.white'),
+            },
+            strong: {
+              color: theme('colors.white'),
             },
             code: {
               color: theme('colors.electric.300'),
