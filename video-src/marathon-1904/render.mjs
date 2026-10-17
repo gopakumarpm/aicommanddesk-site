@@ -1,4 +1,5 @@
 // Renders index.html frames with Playwright (parallel workers) and encodes with ffmpeg.
+// set VERTICAL=1 for the 9:16 (1080x1920) cut
 // usage: node render.mjs --stills <dir> <timings.json> t1 t2 ...
 //        node render.mjs <timings.json> <out_silent.mp4> [fps=20] [workers=4] [frameDir]
 import { createRequire } from 'module';
@@ -12,10 +13,11 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const here = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 
+const VERT = process.env.VERTICAL === '1';
 async function open(timings) {
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
-  const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-  await page.addInitScript(t => { window.TIMINGS = t; }, timings);
+  const page = await browser.newPage(VERT ? { viewport: { width: 720, height: 1280 }, deviceScaleFactor: 1.5 } : { viewport: { width: 1280, height: 720 } });
+  await page.addInitScript(([t, v]) => { window.TIMINGS = t; window.VERTICAL = v; }, [timings, VERT]);
   await page.goto('file://' + path.join(here, 'index.html'));
   return { browser, page };
 }

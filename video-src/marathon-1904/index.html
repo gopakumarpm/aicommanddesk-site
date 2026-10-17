@@ -12,6 +12,8 @@
 <svg id="s" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg"></svg>
 <script>
 // ======================= setup =======================
+const V = !!window.VERTICAL; let CAPTAG = null;
+if (V) { const el = document.getElementById('s'); el.setAttribute('viewBox', '0 0 720 1280'); el.style.width = '720px'; el.style.height = '1280px'; }
 const W = 1280, H = 720, INK = '#1b1a18';
 const FONT = '"DejaVu Sans","Inter",sans-serif', MONO = '"DejaVu Sans Mono",monospace';
 const T = window.TIMINGS || { total: 98.22, lines: [0.6, 9.9, 16.7, 24.3, 33.4, 41.1, 47.3, 51.9, 54.6, 63.7, 73.6, 82.2, 87.2].map((s, i, a) => ({ start: s, end: (a[i + 1] || 96) - .5, text: 'line ' + i })) };
@@ -216,7 +218,7 @@ function dog(x, y, s, t, dir = 1) {
 function bubbleTxt(x, y, w, h, s, o = {}) { const { op = 1, size = 24, tail = -1, col = '#fbf7ea', font = FONT } = o; if (op <= 0) return ''; return `<g opacity="${op}">${path(`M${x + w / 2 + tail * 26} ${y + h - 2} l${-tail * 8} 26 l${tail * -22 - 4} -26`, { fill: col, sw: 3 })}${rect(x, y, w, h, col, { sw: 3.5, r: 20 })}${path(`M${x + w / 2 + tail * 26 - 12} ${y + h} h24`, { stroke: col, sw: 5 })}${tx(x + w / 2, y + h / 2 + size / 3, s, { size, font })}</g>`; }
 function coin(x, y, r = 10) { return circ(x, y, r, '#e8c35a', { sw: 2.5 }) + path(`M${x - r * .4} ${y} h${r * .8}`, { sw: 2 }); }
 function stamp(x, y, s, rot, col, op = 1, size = 54) { if (op <= 0) return ''; return `<g opacity="${op}" transform="rotate(${rot} ${x} ${y})">${rect(x - s.length * size * .33, y - size * .85, s.length * size * .66, size * 1.2, 'none', { stroke: col, sw: 6, r: 6 })}${tx(x, y, s, { size, fill: col, font: MONO, w: 800 })}</g>`; }
-function tag(x, y, a, b, op) { if (op <= 0) return ''; return `<g opacity="${op}">${rect(x, y, 380, 84, '#f4ecd4', { sw: 4, r: 4, op: .95 })}${tx(x + 20, y + 38, a, { size: 30, anchor: 'start', w: 800, font: MONO })}${tx(x + 20, y + 68, b, { size: 22, anchor: 'start', w: 500, font: MONO, fill: '#5a4f3a' })}</g>`; }
+function tag(x, y, a, b, op) { if (op <= 0) return ''; if (V) { CAPTAG = { a, b, op }; return ''; } return `<g opacity="${op}">${rect(x, y, 380, 84, '#f4ecd4', { sw: 4, r: 4, op: .95 })}${tx(x + 20, y + 38, a, { size: 30, anchor: 'start', w: 800, font: MONO })}${tx(x + 20, y + 68, b, { size: 22, anchor: 'start', w: 500, font: MONO, fill: '#5a4f3a' })}</g>`; }
 function thought(x, y, w, s, op, size = 44) { return `<g opacity="${op}">${circ(x - w / 2 + 6, y + 70, 7, '#fbf7ea', { sw: 2.5 })}${circ(x - w / 2 + 24, y + 48, 11, '#fbf7ea', { sw: 2.5 })}${ell(x, y, w / 2, 40, '#fbf7ea', { sw: 3.5 })}${tx(x, y + size * .35, s, { size, font: MONO, w: 800 })}</g>`; }
 
 // ======================= scenes =======================
@@ -235,7 +237,7 @@ function scene0(t, lt, d) { // establishing
   // date tag + title
   g += tag(40, 40, 'ST. LOUIS, MISSOURI', 'August 30, 1904', sstep(lt, .4, 1.1));
   const tp = sstep(lt, d * .5, d * .5 + .9);
-  if (tp > 0) g += `<g opacity="${tp}" transform="translate(0 ${(1 - tp) * 30})">${rect(210, 350, 860, 110, '#f4ecd4', { sw: 5, r: 4 })}${tx(640, 398, 'THE STRANGEST', { size: 40, font: MONO, w: 800 })}${tx(640, 444, 'MARATHON EVER', { size: 52, font: MONO, w: 800, fill: '#8c3b2e' })}</g>`;
+  if (tp > 0 && !V) g += `<g opacity="${tp}" transform="translate(0 ${(1 - tp) * 30})">${rect(210, 350, 860, 110, '#f4ecd4', { sw: 5, r: 4 })}${tx(640, 398, 'THE STRANGEST', { size: 40, font: MONO, w: 800 })}${tx(640, 444, 'MARATHON EVER', { size: 52, font: MONO, w: 800, fill: '#8c3b2e' })}</g>`;
   return g;
 }
 
@@ -486,7 +488,9 @@ function captions(t) {
   const tot = chunks.reduce((a, c) => a + c.length, 0); let acc = 0, cur = chunks[chunks.length - 1];
   const p = (t - l.start) / (l.end - l.start);
   for (const c of chunks) { acc += c.length; if (p * tot <= acc) { cur = c; break; } }
-  return tx(640, 694, cur.toUpperCase().replace(/[.,]$/, ''), { size: 46, fill: '#fff', stroke: INK, sw: 9, w: 900, font: '"DejaVu Sans",sans-serif' });
+  const txt = cur.toUpperCase().replace(/[.,]$/, '');
+  if (V) return tx(360, 1130, txt, { size: Math.min(74, 640 / (txt.length * .78)), fill: '#fff', stroke: INK, sw: 12, w: 900, font: '"DejaVu Sans",sans-serif' });
+  return tx(640, 694, txt, { size: 46, fill: '#fff', stroke: INK, sw: 9, w: 900, font: '"DejaVu Sans",sans-serif' });
 }
 function defs(t) {
   const seed = 1 + Math.floor(t * 8) % 9, gs = 1 + Math.floor(t * 24) % 50;
@@ -498,7 +502,37 @@ function defs(t) {
   <radialGradient id="vig" cx=".5" cy=".5" r=".75"><stop offset=".55" stop-color="#1b1408" stop-opacity="0"/><stop offset="1" stop-color="#1b1408" stop-opacity=".62"/></radialGradient>
   </defs>`;
 }
+const FOCUS = [
+  () => [640, 960], (u) => [lerp(560, 780, u), 820], () => [640, 780],
+  (u) => u < .36 ? [580, 780] : u < .64 ? [640, 1020] : [640, 860],
+  () => [620, 800],
+  (u) => [lerp(640, 860, prog(u, .5, .65)), lerp(1000, 800, prog(u, .5, .65))],
+  () => [660, 820], () => [640, 960], () => [640, 1040], (u) => u < .4 ? [640, 960] : [640, 860],
+  (u) => [lerp(480, 640, u), 880], (u) => u < .45 ? [640, 780] : [740, 1040], () => [540, 1000],
+];
+function frameV(t) {
+  const i = sceneAt(t), lt = t - SC[i], d = SC[i + 1] - SC[i], u = lt / d;
+  CAPTAG = null;
+  const [cx, vw] = FOCUS[i](u), sc = 720 / vw, hWin = H * sc, yWin = 640 - hWin / 2;
+  const body = SCENES[i](t, lt, d);
+  let o = defs(t) + `<rect width="720" height="1280" fill="#2a2113"/>`;
+  o += `<clipPath id="win"><rect x="0" y="${f2(yWin)}" width="720" height="${f2(hWin)}"/></clipPath>`;
+  o += `<g clip-path="url(#win)"><g filter="url(#boil)"><g transform="translate(0 ${f2(yWin)}) scale(${f2(sc)}) translate(${f2(-(cx - vw / 2))} 0)">${body}</g></g></g>`;
+  o += rect(0, yWin - 4, 720, 8, INK, { sw: 0 }) + rect(0, yWin + hWin - 4, 720, 8, INK, { sw: 0 });
+  // header
+  o += tx(360, 92, 'THE STRANGEST', { size: 58, fill: '#f4ecd4', font: MONO, w: 800 }) + tx(360, 156, 'MARATHON EVER', { size: 58, fill: '#e6b07a', font: MONO, w: 800 });
+  o += tx(360, 200, 'A TRUE OLYMPIC STORY · 1904', { size: 24, fill: '#bfae85', font: MONO, w: 700, ls: 2 });
+  if (CAPTAG && CAPTAG.op > 0) o += `<g opacity="${f2(CAPTAG.op)}">${rect(150, yWin - 78, 420, 64, '#f4ecd4', { sw: 3, r: 4 })}${tx(360, yWin - 50, CAPTAG.a, { size: 24, font: MONO, w: 800 })}${tx(360, yWin - 26, CAPTAG.b, { size: 18, font: MONO, w: 500, fill: '#5a4f3a' })}</g>`;
+  o += `<rect width="720" height="1280" fill="url(#sl)"/><rect width="720" height="1280" filter="url(#grain)" opacity=".4"/><rect width="720" height="1280" fill="url(#vig)"/>`;
+  if (!(i === 12 && lt > d - 4.8)) o += captions(t);
+  o += tx(360, 1236, 'AI COMMAND DESK', { size: 26, fill: '#bfae85', font: MONO, w: 800, ls: 3 });
+  if (i > 0 && lt < .22) o += `<rect width="720" height="1280" fill="#1b1408" opacity="${f2(1 - lt / .22)}"/>`;
+  if (t < .5) o += `<rect width="720" height="1280" fill="#1b1408" opacity="${f2(1 - t / .5)}"/>`;
+  if (t > T.total - .8) o += `<rect width="720" height="1280" fill="#1b1408" opacity="${f2(1 - (T.total - t) / .8)}"/>`;
+  return o;
+}
 function frame(t) {
+  if (V) return frameV(t);
   const i = sceneAt(t), lt = t - SC[i], d = SC[i + 1] - SC[i];
   const zoom = 1 + .045 * (lt / d), pan = (lt / d - .5) * -14 * (i % 2 ? 1 : -1);
   let o = defs(t) + `<rect width="${W}" height="${H}" fill="#e6dbbd"/>`;
