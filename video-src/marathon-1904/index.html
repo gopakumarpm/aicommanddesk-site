@@ -1,0 +1,555 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>The Strangest Marathon Ever – stickman story</title>
+<style>
+  html,body{margin:0;background:#000}
+  svg{display:block;width:1280px;height:720px}
+</style>
+</head>
+<body>
+<svg id="s" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg"></svg>
+<script>
+// ======================= setup =======================
+const V = !!window.VERTICAL; let CAPTAG = null;
+if (V) { const el = document.getElementById('s'); el.setAttribute('viewBox', '0 0 720 1280'); el.style.width = '720px'; el.style.height = '1280px'; }
+const W = 1280, H = 720, INK = '#1b1a18';
+const FONT = '"DejaVu Sans","Inter",sans-serif', MONO = '"DejaVu Sans Mono",monospace';
+const T = window.TIMINGS || { total: 98.22, lines: [0.6, 9.9, 16.7, 24.3, 33.4, 41.1, 47.3, 51.9, 54.6, 63.7, 73.6, 82.2, 87.2].map((s, i, a) => ({ start: s, end: (a[i + 1] || 96) - .5, text: 'line ' + i })) };
+const L = T.lines;
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, p) => a + (b - a) * p;
+const ease = p => p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+const eo = p => 1 - Math.pow(1 - p, 3);
+const sstep = (t, a, b) => eo(prog(t, a, b));
+const rad = d => d * Math.PI / 180;
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+const f2 = n => Math.round(n * 100) / 100;
+
+// scene start times; scene i runs from SC[i] to SC[i+1]
+const SC = L.map((l, i) => i === 0 ? 0 : l.start - .3);
+SC.push(T.total);
+const sceneAt = t => { let i = 0; while (i < L.length - 1 && t >= SC[i + 1]) i++; return i; };
+
+// ======================= svg primitives =======================
+const tx = (x, y, s, o = {}) => {
+  const { size = 30, fill = INK, anchor = 'middle', w = 700, op = 1, font = FONT, stroke = '', sw = 0, rot = 0, ls = 0 } = o;
+  if (op <= 0 || s === '') return '';
+  return `<text x="${f2(x)}" y="${f2(y)}" font-family='${font}' font-size="${size}" font-weight="${w}" fill="${fill}" text-anchor="${anchor}" opacity="${f2(op)}"${stroke ? ` stroke="${stroke}" stroke-width="${sw}" stroke-linejoin="round" paint-order="stroke"` : ''}${rot ? ` transform="rotate(${rot} ${x} ${y})"` : ''}${ls ? ` letter-spacing="${ls}"` : ''}>${esc(s)}</text>`;
+};
+const rect = (x, y, w, h, fill, o = {}) => { const { stroke = INK, sw = 3, r = 0, op = 1, rot = 0 } = o; return `<rect x="${f2(x)}" y="${f2(y)}" width="${f2(w)}" height="${f2(h)}" rx="${r}" fill="${fill}" stroke="${stroke || 'none'}" stroke-width="${sw}" opacity="${op}"${rot ? ` transform="rotate(${rot} ${x + w / 2} ${y + h / 2})"` : ''}/>`; };
+const circ = (x, y, r, fill, o = {}) => { const { stroke = INK, sw = 3, op = 1 } = o; return `<circle cx="${f2(x)}" cy="${f2(y)}" r="${f2(r)}" fill="${fill}" stroke="${stroke || 'none'}" stroke-width="${sw}" opacity="${op}"/>`; };
+const ell = (x, y, rx, ry, fill, o = {}) => { const { stroke = INK, sw = 3, op = 1, rot = 0 } = o; return `<ellipse cx="${f2(x)}" cy="${f2(y)}" rx="${f2(rx)}" ry="${f2(ry)}" fill="${fill}" stroke="${stroke || 'none'}" stroke-width="${sw}" opacity="${op}"${rot ? ` transform="rotate(${rot} ${x} ${y})"` : ''}/>`; };
+const path = (d, o = {}) => { const { fill = 'none', stroke = INK, sw = 3, op = 1, cap = 'round' } = o; return `<path d="${d}" fill="${fill}" stroke="${stroke || 'none'}" stroke-width="${sw}" stroke-linecap="${cap}" stroke-linejoin="round" opacity="${op}"/>`; };
+const poly = (pts, fill, o = {}) => path('M' + pts.map(p => f2(p[0]) + ' ' + f2(p[1])).join(' L') + ' Z', { fill, ...o });
+const grp = (s, tr, op = 1) => `<g transform="${tr}"${op < 1 ? ` opacity="${f2(op)}"` : ''}>${s}</g>`;
+
+// ======================= stick figure =======================
+const SKIN = '#f6f3ea', TANK = '#3b4560', SHORTS = '#eadfbf', SHOE = '#6a4326';
+const seg = (a, ang, len) => [a[0] + len * Math.sin(rad(ang)), a[1] + len * Math.cos(rad(ang))];
+function limb(pts, w, col, outline = INK) {
+  const d = 'M' + pts.map(p => f2(p[0]) + ' ' + f2(p[1])).join(' L');
+  return path(d, { stroke: outline, sw: w + 5 }) + path(d, { stroke: col, sw: w });
+}
+const POSE = { aUL: -9, aLL: -6, aUR: 9, aLR: 6, tL: -3, sL: -2, tR: 3, sR: 2, lean: 0, bob: 0 };
+function poseStand(o = {}) { return { ...POSE, ...o }; }
+function poseWalk(ph, o = {}) {
+  const a = Math.sin(ph), b = Math.sin(ph + Math.PI);
+  return { aUL: 30 * b - 6, aLL: 30 * b + 20, aUR: 30 * a + 6, aLR: 30 * a + 20, tL: 28 * a, sL: 28 * a - 12 * Math.max(0, -Math.cos(ph)), tR: 28 * b, sR: 28 * b - 12 * Math.max(0, Math.cos(ph)), lean: 3, bob: -2 * Math.abs(Math.cos(ph)), ...o };
+}
+function poseRun(ph, o = {}) {
+  const a = Math.sin(ph), b = -a, ca = Math.cos(ph);
+  const leg = (u, c) => ({ t: 38 * u + 4, s: 38 * u + 4 - 30 - 40 * Math.max(0, -c) - 10 * (1 - u) / 2 });
+  const A = leg(a, ca), B = leg(b, -ca);
+  return { aUL: 48 * b + 5, aLL: 48 * b + 85, aUR: 48 * a + 5, aLR: 48 * a + 85, tL: A.t, sL: A.s, tR: B.t, sR: B.s, lean: 12, bob: -9 * Math.abs(ca), ...o };
+}
+const MOUTH = {
+  happy: s => path(`M${-15 * s} 0 Q0 ${13 * s} ${15 * s} 0`, { sw: 4 * s }),
+  grin: s => path(`M${-17 * s} -2 Q0 ${24 * s} ${17 * s} -2 Z`, { fill: '#fff', sw: 3.5 * s }),
+  sad: s => path(`M${-13 * s} ${8 * s} Q0 ${-6 * s} ${13 * s} ${8 * s}`, { sw: 4 * s }),
+  smug: s => path(`M${-13 * s} ${3 * s} Q${4 * s} ${11 * s} ${15 * s} ${-3 * s}`, { sw: 4 * s }),
+  worry: s => ell(0, 4 * s, 12 * s, 6 * s, INK, { stroke: INK, sw: 2, rot: -8 }),
+  shock: s => ell(0, 6 * s, 9 * s, 13 * s, INK, { stroke: INK, sw: 2 }),
+  sick: s => path(`M${-16 * s} ${4 * s} q${5 * s} ${-9 * s} ${10 * s} 0 t${10 * s} 0 t${10 * s} 0`, { sw: 4 * s }),
+  flat: s => path(`M${-11 * s} ${4 * s} L${11 * s} ${4 * s}`, { sw: 4 * s }),
+  o: s => ell(0, 5 * s, 6 * s, 7 * s, INK, { stroke: INK, sw: 2 }),
+};
+function face(cx, cy, s, mood, look, t, skin) {
+  let o = '';
+  const sleepy = mood === 'sleep', dizzy = mood === 'dizzy';
+  const blink = (t * .9 % 3) < .09;
+  const ex = [-17 * s, 17 * s];
+  if (sleepy) ex.forEach(x => { o += path(`M${cx + x - 8 * s} ${cy - 2 * s} Q${cx + x} ${cy + 7 * s} ${cx + x + 8 * s} ${cy - 2 * s}`, { sw: 3.5 * s }); });
+  else if (dizzy) ex.forEach(x => { let d = ''; for (let k = 0; k < 28; k++) { const a = k * .5 + t * 9, r = 1 + k * .38; d += (k ? 'L' : 'M') + f2(cx + x + Math.cos(a) * r * s) + ' ' + f2(cy - 2 * s + Math.sin(a) * r * s); } o += path(d, { sw: 2.2 * s }); });
+  else ex.forEach(x => { o += ell(cx + x + look * 5 * s, cy - 2 * s, 6.2 * s, blink ? 1.4 * s : 10 * s, INK, { stroke: INK, sw: 1 }); });
+  const m = { happy: 'a', sad: 'b', worry: 'b', shock: 'c', sick: 'b', sleep: 'd', dizzy: 'b' }[mood] || 'a';
+  const br = (x1, y1, x2, y2, x3 = null) => path(`M${cx + x1 * s} ${cy + y1 * s} Q${cx + (x1 + x2) / 2 * s} ${cy + (Math.min(y1, y2) - 6) * s} ${cx + x2 * s} ${cy + y2 * s}`, { sw: 3.2 * s });
+  if (!sleepy) {
+    if (m === 'a') o += br(-27, -22, -8, -22) + br(8, -22, 27, -22);
+    else if (m === 'b') o += path(`M${cx - 27 * s} ${cy - 16 * s} L${cx - 8 * s} ${cy - 25 * s}`, { sw: 3.2 * s }) + path(`M${cx + 27 * s} ${cy - 16 * s} L${cx + 8 * s} ${cy - 25 * s}`, { sw: 3.2 * s });
+    else if (m === 'c') o += br(-27, -30, -8, -30) + br(8, -30, 27, -30);
+  }
+  const mt = mood === 'talk' ? `<ellipse cx="0" cy="${5 * s}" rx="${10 * s}" ry="${(2 + 8 * Math.abs(Math.sin(t * 11))) * s}" fill="${INK}"/>`
+    : mood === 'eat' ? `<ellipse cx="0" cy="${6 * s}" rx="${(7 + 5 * Math.abs(Math.sin(t * 9))) * s}" ry="${(3 + 5 * Math.abs(Math.sin(t * 9))) * s}" fill="${INK}"/>`
+    : mood === 'sleep' ? `<ellipse cx="0" cy="${8 * s}" rx="${4 * s}" ry="${(3 + 2 * Math.sin(t * 2.4)) * s}" fill="${INK}"/>`
+    : (MOUTH[mood] || MOUTH.happy)(s);
+  o += `<g transform="translate(${f2(cx + look * 4 * s)} ${f2(cy + 25 * s)})">${mt}</g>`;
+  return o;
+}
+function man(x, gy, o = {}) {
+  const { s = 1, dir = 1, mood = 'happy', look = 0, skin = SKIN, top = TANK, bottom = SHORTS, t = 0, trousers = '', hair = true, hat = '', rot = 0, shoes = true, sleeves = '', cap = '', name = '', holding = '' } = o;
+  gy = Math.min(gy, 640);
+  const p = { ...POSE, ...(o.pose || {}) };
+  const hip = [x, gy - 104 * s + p.bob * s], sh = [x + p.lean * s, hip[1] - 92 * s], hc = [sh[0] + p.lean * .5 * s, sh[1] - 56 * s];
+  const sL = [sh[0] - 27 * s, sh[1] + 10 * s], sR = [sh[0] + 27 * s, sh[1] + 10 * s];
+  const hL = [x - 12 * s, hip[1]], hR = [x + 12 * s, hip[1]];
+  const legPts = (h, ta, sa) => { const k = seg(h, ta, 52 * s); return [h, k, seg(k, sa, 52 * s)]; };
+  const armPts = (a, ua, la) => { const e = seg(a, ua, 48 * s); return [a, e, seg(e, la, 46 * s)]; };
+  const lL = legPts(hL, p.tL, p.sL), lR = legPts(hR, p.tR, p.sR), aL = armPts(sL, p.aUL, p.aLL), aR = armPts(sR, p.aUR, p.aLR);
+  const legCol = trousers || skin, armCol = sleeves || skin;
+  const leg = (pts) => {
+    let g = limb(pts, (trousers ? 14 : 7) * s, legCol);
+    if (!trousers) { const a = pts[1], b = pts[2], m = [lerp(a[0], b[0], .55), lerp(a[1], b[1], .55)]; g += limb([m, b], 8 * s, '#3b3b3b'); }
+    if (shoes) { const f = pts[2]; g += ell(f[0] + 9 * s, f[1] + 3 * s, 19 * s, 9 * s, SHOE, { sw: 3 * s }); }
+    return g;
+  };
+  let g = '';
+  g += leg(lL) + leg(lR);
+  if (!trousers) {
+    [lL, lR].forEach(pts => { const e = [lerp(pts[0][0], pts[1][0], .75), lerp(pts[0][1], pts[1][1], .75)]; g += limb([pts[0], e], 24 * s, bottom); });
+    g += poly([[hip[0] - 25 * s, hip[1] - 14 * s], [hip[0] + 25 * s, hip[1] - 14 * s], [hip[0] + 26 * s, hip[1] + 12 * s], [hip[0] - 26 * s, hip[1] + 12 * s]], bottom, { sw: 3.5 * s });
+  }
+  g += limb(aL, (sleeves ? 11 : 6.5) * s, armCol) + circ(aL[2][0], aL[2][1], 7.5 * s, skin, { sw: 3 * s });
+  // torso (tank top)
+  g += path(`M${f2(sh[0] - 8 * s)} ${f2(sh[1] - 12 * s)} L${f2(sh[0])} ${f2(sh[1] - 40 * s)}`, { sw: 0 });
+  g += poly([[sh[0] - 30 * s, sh[1] + 4 * s], [sh[0] - 14 * s, sh[1] - 8 * s], [sh[0] + 14 * s, sh[1] - 8 * s], [sh[0] + 30 * s, sh[1] + 4 * s], [hip[0] + 24 * s, hip[1] - 8 * s], [hip[0] - 24 * s, hip[1] - 8 * s]], top, { sw: 3.5 * s });
+  g += limb(aR, (sleeves ? 11 : 6.5) * s, armCol) + circ(aR[2][0], aR[2][1], 7.5 * s, skin, { sw: 3 * s });
+  if (holding === 'scissors') g += grp(`<g stroke="${INK}" stroke-width="${3 * s}" fill="#ccc"><path d="M0 0 L${46 * s} ${-26 * s}" stroke-width="${6 * s}"/><path d="M0 ${4 * s} L${46 * s} ${30 * s}" stroke-width="${6 * s}"/><circle cx="${-8 * s}" cy="${-6 * s}" r="${8 * s}" fill="none"/><circle cx="${-8 * s}" cy="${12 * s}" r="${8 * s}" fill="none"/></g>`, `translate(${f2(aR[2][0])} ${f2(aR[2][1])})`);
+  if (holding === 'bottle') g += grp(`${rect(-7 * s, -34 * s, 14 * s, 36 * s, '#7a4a22', { sw: 2.5 * s, r: 3 })}${rect(-4 * s, -46 * s, 8 * s, 14 * s, '#7a4a22', { sw: 2.5 * s })}${rect(-6 * s, -22 * s, 12 * s, 12 * s, '#f1e6c4', { sw: 1.5 * s })}`, `translate(${f2(aR[2][0])} ${f2(aR[2][1])})`);
+  if (holding === 'pistol') g += grp(`${path(`M0 0 L${34 * s} ${-10 * s}`, { sw: 7 * s })}${path(`M0 0 L${-4 * s} ${14 * s}`, { sw: 7 * s })}`, `translate(${f2(aR[2][0])} ${f2(aR[2][1])})`);
+  if (holding === 'apple') g += grp(`${circ(0, -8 * s, 10 * s, '#b4482f', { sw: 2.5 * s })}${path(`M0 ${-18 * s} q${3 * s} ${-8 * s} ${8 * s} ${-9 * s}`, { sw: 2.5 * s })}`, `translate(${f2(aR[2][0])} ${f2(aR[2][1])})`);
+  // neck + head
+  g += limb([[sh[0], sh[1] - 6 * s], [hc[0], hc[1] + 44 * s]], 6 * s, skin);
+  g += circ(hc[0], hc[1], 50 * s, skin, { sw: 5 * s });
+  if (hair) { const hx = hc[0], hy = hc[1]; g += [[-18, -46, -26, -62, -34, -66], [-4, -50, -6, -68, -16, -76], [10, -49, 14, -64, 24, -68], [-30, -38, -44, -48, -52, -46]].map(h => path(`M${f2(hx + h[0] * s)} ${f2(hy + h[1] * s)} Q${f2(hx + h[2] * s)} ${f2(hy + h[3] * s)} ${f2(hx + h[4] * s)} ${f2(hy + h[5] * s)}`, { sw: 3.5 * s })).join(''); }
+  g += face(hc[0], hc[1], s, mood, look, t, skin);
+  if (hat === 'bowler') g += ell(hc[0], hc[1] - 44 * s, 52 * s, 10 * s, '#2a2824', { sw: 3 * s }) + path(`M${f2(hc[0] - 32 * s)} ${f2(hc[1] - 46 * s)} Q${f2(hc[0])} ${f2(hc[1] - 100 * s)} ${f2(hc[0] + 32 * s)} ${f2(hc[1] - 46 * s)} Z`, { fill: '#2a2824', sw: 3 * s });
+  if (hat === 'cap') g += path(`M${f2(hc[0] - 46 * s)} ${f2(hc[1] - 18 * s)} Q${f2(hc[0])} ${f2(hc[1] - 84 * s)} ${f2(hc[0] + 46 * s)} ${f2(hc[1] - 18 * s)} Z`, { fill: '#6b6a5a', sw: 3 * s }) + path(`M${f2(hc[0] + 12 * s)} ${f2(hc[1] - 24 * s)} L${f2(hc[0] + 58 * s)} ${f2(hc[1] - 20 * s)}`, { sw: 5 * s });
+  if (hat === 'straw') g += ell(hc[0], hc[1] - 40 * s, 66 * s, 11 * s, '#d9c48a', { sw: 3 * s }) + path(`M${f2(hc[0] - 34 * s)} ${f2(hc[1] - 44 * s)} Q${f2(hc[0])} ${f2(hc[1] - 92 * s)} ${f2(hc[0] + 34 * s)} ${f2(hc[1] - 44 * s)} Z`, { fill: '#d9c48a', sw: 3 * s });
+  if (hat === 'sunhat') g += ell(hc[0], hc[1] - 38 * s, 60 * s, 9 * s, '#c9b27a', { sw: 3 * s });
+  if (rot) g = `<g transform="rotate(${rot} ${x} ${gy - 8})">${g}</g>`;
+  if (dir < 0) g = `<g transform="translate(${2 * x} 0) scale(-1 1)">${g}</g>`;
+  return g;
+}
+// small background figure (crowd / extra), greyed to sit behind
+function extra(x, y, s, seed, o = {}) {
+  const r = rng(seed), moods = ['happy', 'worry', 'grin', 'shock', 'flat'];
+  const { cheer = 0, t = 0, col = ['#7a6a55', '#6b7a6a', '#8a7a8a', '#9a8a6a'][seed % 4], op = 1 } = o;
+  const bob = cheer ? Math.abs(Math.sin(t * 6 + seed)) * 10 * s : 0;
+  const hc = [x, y - 60 * s - bob];
+  let g = path(`M${x} ${y - 38 * s - bob} L${x} ${y - bob}`, { sw: 5 * s });
+  g += poly([[x - 18 * s, y - 38 * s - bob], [x + 18 * s, y - 38 * s - bob], [x + 14 * s, y - bob], [x - 14 * s, y - bob]], col, { sw: 3 * s });
+  if (cheer) g += path(`M${x - 16 * s} ${y - 34 * s - bob} L${x - 30 * s} ${y - 66 * s - bob}`, { sw: 4 * s }) + path(`M${x + 16 * s} ${y - 34 * s - bob} L${x + 30 * s} ${y - 66 * s - bob}`, { sw: 4 * s });
+  g += circ(hc[0], hc[1], 20 * s, '#e7e1d0', { sw: 3 * s });
+  const m = cheer ? 'grin' : moods[Math.floor(r() * moods.length)];
+  g += ell(x - 7 * s, hc[1] - 2 * s, 2.6 * s, 4 * s, INK, { sw: 0.5 }) + ell(x + 7 * s, hc[1] - 2 * s, 2.6 * s, 4 * s, INK, { sw: 0.5 });
+  g += `<g transform="translate(${x} ${hc[1] + 10 * s})">${(MOUTH[m] || MOUTH.happy)(s * .45)}</g>`;
+  return op < 1 ? `<g opacity="${op}">${g}</g>` : g;
+}
+
+// ======================= scenery =======================
+const SKY = (t0 = 0, warm = 0) => `<rect width="${W}" height="${H}" fill="url(#sky)"/>`;
+function clouds(t, seed = 3) { const r = rng(seed); let g = ''; for (let i = 0; i < 4; i++) { const x = ((r() * 1500 + t * (4 + i * 2)) % 1500) - 110, y = 70 + r() * 150; g += `<g opacity=".55">${ell(x, y, 90, 20, '#f4ecd6', { stroke: '', sw: 0 })}${ell(x + 50, y - 14, 60, 18, '#f4ecd6', { stroke: '', sw: 0 })}${ell(x - 40, y + 6, 55, 14, '#f4ecd6', { stroke: '', sw: 0 })}</g>`; } return g; }
+function hills(base = 340, seed = 5) { const r = rng(seed); let a = [[-20, base + 40]], b = []; for (let x = -20; x <= 1300; x += 90) a.push([x, base - 10 - r() * 50]); a.push([1300, base + 60], [-20, base + 60]); let g = poly(a, '#c6b78f', { sw: 3 }); b = [[-20, base + 60]]; for (let x = -20; x <= 1300; x += 70) b.push([x, base + 14 - r() * 28]); b.push([1300, base + 70]); return g + poly(b, '#bfae82', { sw: 3 }); }
+function sun(x, y, r) { return `<g>${circ(x, y, r * 1.7, '#f6e3a8', { stroke: '', sw: 0, op: .35 })}${circ(x, y, r * 1.3, '#f6e3a8', { stroke: '', sw: 0, op: .45 })}${circ(x, y, r, '#fbf2cf', { stroke: INK, sw: 3 })}</g>`; }
+function ground(y0 = 340, col = '#d2c093') { return `<rect x="-20" y="${y0}" width="1320" height="${H - y0 + 20}" fill="${col}"/>${path(`M-20 ${y0} L1300 ${y0}`, { sw: 3 })}`; }
+function roadBG(scroll, o = {}) {
+  const { hz = 330, shimmer = 0, t = 0 } = o;
+  let g = SKY() + sun(1010, 150, 52) + clouds(t, 4) + hills(hz) + ground(hz);
+  g += poly([[600, hz], [680, hz], [1120, H + 10], [160, H + 10]], '#dccb9f', { sw: 3.5 });
+  const r = rng(11);
+  for (let i = 0; i < 16; i++) { const z = ((i / 16) + scroll) % 1, y = hz + 4 + 386 * z * z, hw = 40 + 420 * z * z; for (const side of [-1, 1]) { const x = 640 + side * (hw + 30 + r() * 120 * z * z + 20); g += tuft(x, y, .25 + 1.5 * z * z); } }
+  for (let k = -1; k <= 1; k += 2) { g += path(`M${640 + k * 14} ${hz + 6} L${640 + k * 200} ${H + 10}`, { sw: 2.4, op: .35 }); }
+  if (shimmer) for (let i = 0; i < 6; i++) { const y = hz + 4 + i * 9, w = 220 + i * 70; g += path(`M${640 - w} ${y} q${w / 4} ${-6 + 6 * Math.sin(t * 3 + i)} ${w / 2} 0 t${w / 2} 0 t${w / 2} 0 t${w / 2} 0`, { sw: 2, op: .22 }); }
+  return g;
+}
+function tuft(x, y, s = 1) { return path(`M${x - 8 * s} ${y} q${2 * s} ${-14 * s} ${-2 * s} ${-18 * s} M${x} ${y} q${0} ${-20 * s} ${3 * s} ${-24 * s} M${x + 8 * s} ${y} q${-2 * s} ${-12 * s} ${4 * s} ${-16 * s}`, { sw: 2.4 * Math.max(.7, s) }); }
+function dust(x, y, t, s = 1, n = 5) { let g = ''; for (let i = 0; i < n; i++) { const k = ((t * .8 + i / n) % 1); g += circ(x - k * 170 * s - 10, y - 8 - k * 70 * s, (14 + k * 46) * s, '#e6d8b0', { stroke: '', sw: 0, op: .5 * (1 - k) }); } return g; }
+function tree(x, y, s = 1, apples = true, o = {}) {
+  const { got = 0 } = o; let g = path(`M${x} ${y} q${-6 * s} ${-70 * s} ${-4 * s} ${-120 * s}`, { sw: 22 * s, stroke: INK }) + path(`M${x} ${y} q${-6 * s} ${-70 * s} ${-4 * s} ${-120 * s}`, { sw: 15 * s, stroke: '#8a6a45' });
+  g += [[-70, -170, 90], [10, -210, 100], [80, -165, 85], [-10, -150, 90]].map(c => circ(x + c[0] * s, y + c[1] * s, c[2] * s * .85, '#9aa468', { sw: 3.5 * s })).join('');
+  if (apples) [[-70, -150], [30, -190], [75, -140], [-20, -120], [-100, -190], [60, -220]].forEach((a, i) => { if (i >= got) g += circ(x + a[0] * s, y + a[1] * s, 11 * s, '#b4482f', { sw: 2.6 * s }); });
+  return g;
+}
+function crowdRows(x0, y0, w, rows, seed, t = 0, cheer = 0) { let g = ''; for (let r = rows - 1; r >= 0; r--) { const n = Math.floor(w / 46); for (let i = 0; i < n; i++) { const rr = rng(seed + r * 50 + i); g += extra(x0 + i * 46 + (r % 2) * 20 + rr() * 10, y0 + r * 44, .62, seed + r * 50 + i, { cheer, t }); } } return g; }
+function stands(x, y, w, rows, seed, t = 0, cheer = 0) {
+  let g = '';
+  for (let r = 0; r < rows; r++) g += rect(x, y + r * 44 + 34, w, 14, '#a99a76', { sw: 3 });
+  g += crowdRows(x + 20, y + 8, w - 40, rows, seed, t, cheer);
+  g += poly([[x - 14, y - 20], [x + w + 14, y - 20], [x + w + 14, y - 6], [x - 14, y - 6]], '#8f8160', { sw: 3 });
+  return g;
+}
+function barrel(x, y, s = 1) { return `<g>${path(`M${x - 28 * s} ${y - 66 * s} q${-8 * s} ${33 * s} 0 ${66 * s} h${56 * s} q${8 * s} ${-33 * s} 0 ${-66 * s} Z`, { fill: '#8a6a45', sw: 3.5 * s })}${path(`M${x - 30 * s} ${y - 46 * s} h${60 * s} M${x - 30 * s} ${y - 18 * s} h${60 * s}`, { sw: 3 * s })}${ell(x, y - 66 * s, 28 * s, 8 * s, '#6f5434', { sw: 3 * s })}</g>`; }
+function car(x, y, s = 1, t = 0, dir = 1, driver = true) {
+  const bounce = Math.sin(t * 22) * 2 * s;
+  let g = '';
+  g += rect(x - 120 * s, y - 70 * s + bounce, 200 * s, 44 * s, '#8c3b2e', { sw: 4 * s, r: 10 });
+  g += poly([[x + 50 * s, y - 70 * s + bounce], [x + 110 * s, y - 62 * s + bounce], [x + 128 * s, y - 40 * s + bounce], [x + 80 * s, y - 28 * s + bounce]], '#8c3b2e', { sw: 4 * s });
+  g += rect(x - 70 * s, y - 128 * s + bounce, 6 * s, 62 * s, INK, { sw: 0 }) + path(`M${x - 70 * s} ${y - 128 * s + bounce} h${70 * s}`, { sw: 6 * s });
+  if (driver) g += man(x - 30 * s, y - 30 * s + bounce, { s: .45 * s, mood: 'smug', pose: poseStand({ aUR: 140, aLR: 160, aUL: -10, tL: 70, sL: 0, tR: 70, sR: 0 }), t, shoes: false, trousers: '#6a6a60' }).replace(/$/, '');
+  [-80, 60].forEach(wx => { const wy = y - 6 * s, r = 30 * s; g += circ(x + wx * s, wy, r, '#2c2a26', { sw: 4 * s }) + circ(x + wx * s, wy, r * .5, '#b9ad8c', { sw: 3 * s }); for (let k = 0; k < 4; k++) { const a = t * 18 + k * Math.PI / 2; g += path(`M${f2(x + wx * s)} ${f2(wy)} L${f2(x + wx * s + Math.cos(a) * r * .5)} ${f2(wy + Math.sin(a) * r * .5)}`, { sw: 2.2 * s }); } });
+  if (dir < 0) g = `<g transform="translate(${2 * x} 0) scale(-1 1)">${g}</g>`;
+  return g;
+}
+function dog(x, y, s, t, dir = 1) {
+  const ph = t * 16, l = (o) => 16 * Math.sin(ph + o);
+  let g = [[-30, 0], [-22, Math.PI], [28, Math.PI * .5], [36, Math.PI * 1.5]].map(([lx, o]) => path(`M${f2(x + lx * s)} ${f2(y - 24 * s)} l${f2(l(o) * s)} ${f2(26 * s)}`, { sw: 5 * s })).join('');
+  g += ell(x, y - 34 * s, 46 * s, 20 * s, '#6f5a43', { sw: 3.5 * s });
+  g += circ(x + 52 * s, y - 52 * s, 17 * s, '#6f5a43', { sw: 3.5 * s }) + poly([[x + 62 * s, y - 56 * s], [x + 84 * s, y - 46 * s], [x + 60 * s, y - 40 * s]], '#6f5a43', { sw: 3 * s });
+  g += circ(x + 56 * s, y - 56 * s, 2.5 * s, INK, { sw: 0 }) + path(`M${x + 66 * s} ${y - 42 * s} q${6 * s} ${12 * s} ${2 * s} ${14 * s}`, { sw: 3 * s, stroke: '#a33' });
+  g += path(`M${x - 46 * s} ${y - 40 * s} q${-16 * s} ${-18 * s} ${-26 * s} ${-14 * s}`, { sw: 4 * s });
+  g += poly([[x + 44 * s, y - 66 * s], [x + 50 * s, y - 84 * s], [x + 58 * s, y - 66 * s]], '#6f5a43', { sw: 3 * s });
+  if (dir < 0) g = `<g transform="translate(${2 * x} 0) scale(-1 1)">${g}</g>`;
+  return g;
+}
+function bubbleTxt(x, y, w, h, s, o = {}) { const { op = 1, size = 24, tail = -1, col = '#fbf7ea', font = FONT } = o; if (op <= 0) return ''; return `<g opacity="${op}">${path(`M${x + w / 2 + tail * 26} ${y + h - 2} l${-tail * 8} 26 l${tail * -22 - 4} -26`, { fill: col, sw: 3 })}${rect(x, y, w, h, col, { sw: 3.5, r: 20 })}${path(`M${x + w / 2 + tail * 26 - 12} ${y + h} h24`, { stroke: col, sw: 5 })}${tx(x + w / 2, y + h / 2 + size / 3, s, { size, font })}</g>`; }
+function coin(x, y, r = 10) { return circ(x, y, r, '#e8c35a', { sw: 2.5 }) + path(`M${x - r * .4} ${y} h${r * .8}`, { sw: 2 }); }
+function stamp(x, y, s, rot, col, op = 1, size = 54) { if (op <= 0) return ''; return `<g opacity="${op}" transform="rotate(${rot} ${x} ${y})">${rect(x - s.length * size * .33, y - size * .85, s.length * size * .66, size * 1.2, 'none', { stroke: col, sw: 6, r: 6 })}${tx(x, y, s, { size, fill: col, font: MONO, w: 800 })}</g>`; }
+function tag(x, y, a, b, op) { if (op <= 0) return ''; if (V) { CAPTAG = { a, b, op }; return ''; } return `<g opacity="${op}">${rect(x, y, 380, 84, '#f4ecd4', { sw: 4, r: 4, op: .95 })}${tx(x + 20, y + 38, a, { size: 30, anchor: 'start', w: 800, font: MONO })}${tx(x + 20, y + 68, b, { size: 22, anchor: 'start', w: 500, font: MONO, fill: '#5a4f3a' })}</g>`; }
+function thought(x, y, w, s, op, size = 44) { return `<g opacity="${op}">${circ(x - w / 2 + 6, y + 70, 7, '#fbf7ea', { sw: 2.5 })}${circ(x - w / 2 + 24, y + 48, 11, '#fbf7ea', { sw: 2.5 })}${ell(x, y, w / 2, 40, '#fbf7ea', { sw: 3.5 })}${tx(x, y + size * .35, s, { size, font: MONO, w: 800 })}</g>`; }
+
+// ======================= scenes =======================
+const FELIX = { mood: 'happy', top: TANK };
+
+function scene0(t, lt, d) { // establishing
+  const u = lt / d;
+  let g = SKY() + sun(280, 150, 50) + clouds(t, 9) + hills(360, 8) + ground(400, '#d2c093');
+  // stadium
+  g += stands(300, 310, 700, 3, 40, t, 0.4 + 0 * u);
+  g += poly([[280, 300], [1020, 300], [1000, 280], [300, 280]], '#a99a76', { sw: 3 });
+  [[330, 1], [650, 1.2], [980, 1]].forEach(([fx, fs], i) => { g += path(`M${fx} 290 V${200 / fs}`, { sw: 5 }) + poly([[fx, 200 / fs], [fx + 70, 214 / fs + 4 * Math.sin(t * 5 + i)], [fx, 228 / fs]], i === 1 ? '#8c3b2e' : '#6e7f9a', { sw: 3 }); });
+  // foreground runners warming up
+  const rs = [[200, 1.0], [360, .9], [520, 1.05], [800, .95], [980, 1.0], [1120, .9]];
+  rs.forEach(([x, s], i) => { g += man(x, 650 + (i % 2) * 10, { s: s * .72, pose: poseRun(t * 5 + i, { bob: -3 }), mood: i % 3 ? 'happy' : 'grin', dir: i < 3 ? 1 : -1, t }); });
+  // date tag + title
+  g += tag(40, 40, 'ST. LOUIS, MISSOURI', 'August 30, 1904', sstep(lt, .4, 1.1));
+  const tp = sstep(lt, d * .5, d * .5 + .9);
+  if (tp > 0 && !V) g += `<g opacity="${tp}" transform="translate(0 ${(1 - tp) * 30})">${rect(210, 350, 860, 110, '#f4ecd4', { sw: 5, r: 4 })}${tx(640, 398, 'THE STRANGEST', { size: 40, font: MONO, w: 800 })}${tx(640, 444, 'MARATHON EVER', { size: 52, font: MONO, w: 800, fill: '#8c3b2e' })}</g>`;
+  return g;
+}
+
+function scene1(t, lt, d) { // heat, dust, one water stop
+  const u = lt / d;
+  let g = roadBG((t * .05) % 1, { shimmer: 1, t });
+  // thermometer
+  const lvl = sstep(lt, .4, 3.5);
+  g += `<g>${rect(70, 90, 34, 190, '#f4ecd4', { sw: 4, r: 17 })}${circ(87, 300, 28, '#b4482f', { sw: 4 })}${rect(81, 280 - lvl * 160, 12, 20 + lvl * 160, '#b4482f', { sw: 0, r: 0 })}${tx(87, 76, '90°F', { size: 34, font: MONO, w: 800, fill: '#8c3b2e' })}</g>`;
+  // water stop at right
+  const wx = 1090, wo = sstep(lt, d * .45, d * .45 + .8);
+  g += barrel(wx, 470, 1.3) + path(`M${wx + 80} 470 V330`, { sw: 6 }) + rect(wx + 50, 300, 120, 44, '#f4ecd4', { sw: 4 }) + tx(wx + 110, 332, 'WATER', { size: 24, font: MONO, w: 800 });
+  g += man(wx - 100, 520, { s: .8, hat: 'cap', mood: 'flat', pose: poseStand({ aUR: 100, aLR: 110 }), dir: -1, top: '#7a7a68', trousers: '#5f5d52', t });
+  if (wo > 0) g += `<g opacity="${wo}">${tx(wx + 20, 250, 'ONLY ONE', { size: 30, font: MONO, w: 800, fill: '#8c3b2e' })}${tx(wx + 20, 282, 'WATER STOP', { size: 30, font: MONO, w: 800, fill: '#8c3b2e' })}</g>`;
+  // tired runner hands-on-knees (hero shot) walking toward camera
+  const walk = poseWalk(t * 2.6, { lean: 22, aUL: -4, aLL: 12, aUR: 4, aLR: -12, bob: 0 });
+  g += man(560, 690, { s: 1.35, pose: walk, mood: 'worry', look: 0, t, dir: 1 });
+  // distant runners
+  [[700, 400, .26], [770, 392, .22], [830, 398, .24]].forEach(([x, y, s], i) => g += man(x, y, { s, pose: poseWalk(t * 3 + i * 2), mood: 'flat', t }));
+  g += dust(900, 410, t, .8, 4);
+  return g;
+}
+
+function felixPortrait(t, x, gy, s, pose, mood, extra = {}) { return man(x, gy, { s, mood, pose, t, ...extra }); }
+
+function scene2(t, lt, d) { // meet Felix
+  const u = lt / d;
+  let g = SKY() + clouds(t, 6) + ground(470, '#cdb88a');
+  // Havana colonnade
+  for (let i = 0; i < 9; i++) { const x = 20 + i * 160; g += rect(x, 250, 120, 220, i % 2 ? '#d7c79e' : '#cdb98f', { sw: 3.5 }); g += rect(x + 20, 290, 30, 60, '#9aa5a0', { sw: 3 }) + rect(x + 70, 290, 30, 60, '#9aa5a0', { sw: 3 }); g += path(`M${x} 250 q60 -40 120 0`, { sw: 3.5 }); }
+  const wave = Math.sin(t * 6) * 18;
+  const poor = sstep(lt, 3.3, 4.2);
+  const pose = poseStand({ aUR: lerp(150 + wave, 70, poor), aLR: lerp(160 + wave, 80, poor), aUL: lerp(-12, -70, poor), aLL: lerp(-8, -80, poor) });
+  g += man(640, 700, { s: 1.65, pose, mood: poor > .5 ? 'sad' : 'happy', t, shoes: false });
+  g += tag(36, 36, 'FELIX CARVAJAL', 'Cuban mailman', sstep(lt, .5, 1.2));
+  if (poor > 0) { g += thought(930, 250, 190, '$0', poor, 54); g += thought(350, 250, 220, 'no coach', poor, 34).replace('translate', 'translate'); }
+  // empty pockets / no shoes hint
+  g += tx(640, 718, '', {});
+  return g;
+}
+
+function scene3(t, lt, d) { // fundraising, gambling, hitchhiking
+  const u = lt / d;
+  let g = '';
+  if (u < .36) { // run laps in Havana
+    const sc = t * .35;
+    g += SKY() + ground(470, '#cdb88a');
+    for (let i = -1; i < 9; i++) { const x = ((i * 220 - sc * 700) % 1980 + 1980) % 1980 - 300; g += rect(x, 250, 170, 220, i % 2 ? '#d7c79e' : '#cdb98f', { sw: 3.5 }) + rect(x + 30, 290, 38, 70, '#9aa5a0', { sw: 3 }) + rect(x + 100, 290, 38, 70, '#9aa5a0', { sw: 3 }); }
+    g += tx(640, 130, 'HAVANA', { size: 54, font: MONO, w: 800, fill: '#8c3b2e', op: .85 });
+    for (let i = 0; i < 5; i++) g += extra(110 + i * 60, 560, 1.0 - (i % 2) * .15, 70 + i, { cheer: 1, t });
+    g += man(720, 640, { s: 1.15, pose: poseRun(t * 9), mood: 'grin', t, shoes: false });
+    for (let k = 0; k < 7; k++) { const kk = ((lt * .9 + k * .31) % 1.2), px = 200 + k * 38 + kk * 350, py = 470 - Math.sin(Math.min(1, kk / 1.1) * Math.PI) * 190 + kk * 60; if (kk < 1.1) g += coin(px, py, 11); }
+    g += tx(1100, 120, '+ coins', { size: 40, font: MONO, w: 800, fill: '#a07c20' });
+  } else if (u < .64) { // dice
+    const k = (u - .36) / .28;
+    g += SKY() + ground(470, '#cdb88a');
+    g += rect(300, 440, 680, 40, '#7a5a3a', { sw: 4 }) + rect(330, 480, 20, 130, '#7a5a3a', { sw: 4 }) + rect(930, 480, 20, 130, '#7a5a3a', { sw: 4 });
+    g += man(190, 660, { s: 1.3, mood: k < .55 ? 'happy' : 'shock', pose: poseStand({ aUR: 60, aLR: 90 }), t });
+    g += man(1090, 660, { s: 1.3, hat: 'bowler', mood: 'smug', pose: poseStand({ aUL: -60, aLL: -80 }), dir: -1, t, top: '#5a3a3a' });
+    const roll = prog(k, .0, .5), dx = 640 - lerp(160, 0, eo(roll)), dy = 400 - Math.abs(Math.sin(roll * 9)) * 90 * (1 - roll), rot = roll * 700;
+    const die = (ox) => `<g transform="translate(${f2(dx + ox)} ${f2(dy)}) rotate(${f2(rot + ox * 3)})">${rect(-24, -24, 48, 48, '#fbf7ea', { sw: 3.5, r: 6 })}${circ(-10, -10, 4, INK, { sw: 0 })}${circ(10, 10, 4, INK, { sw: 0 })}${roll > .95 ? circ(0, 0, 4, INK, { sw: 0 }) : ''}</g>`;
+    g += die(0) + die(70);
+    const slide = prog(k, .55, .95);
+    for (let i = 0; i < 6; i++) g += coin(lerp(380 + i * 22, 1010, ease(slide)), lerp(428, 440, slide) - (i % 2) * 8, 12);
+    g += stamp(640, 250, 'LOST IT ALL', 12, '#8c3b2e', sstep(k, .7, .85), 60);
+  } else { // hitchhiking
+    const k = (u - .64) / .36, sc = t * .4;
+    g += roadBG(0.3 + (t * .02) % 1, { t });
+    g += man(300, 690, { s: 1.35, pose: poseStand({ aUR: 125, aLR: 135, aUL: -20 }), mood: k < .6 ? 'happy' : 'grin', t, look: 1, shoes: false });
+    g += path(`M${f2(300 + 80)} 420 l16 -22`, { sw: 0 });
+    const cx = lerp(-300, 1500, ease(clamp(k / .5)));
+    g += dust(cx - 80, 560, t, 1, 5) + car(cx, 560, 1.1, t);
+    if (k > .55) g += tx(640, 180, 'HITCHHIKING', { size: 60, font: MONO, w: 800, fill: '#8c3b2e', op: sstep(k, .55, .75) });
+  }
+  return g;
+}
+
+function scene4(t, lt, d) { // scissors
+  const u = lt / d, snipAt = d * .55;
+  let g = SKY() + clouds(t, 12) + ground(470, '#cdb88a');
+  for (let i = 0; i < 9; i++) { const x = 20 + i * 160; g += rect(x, 270, 120, 200, i % 2 ? '#d7c79e' : '#cdb98f', { sw: 3.5 }); }
+  const cut = lt > snipAt;
+  const snipP = prog(lt, snipAt - .7, snipAt);
+  g += tag(36, 36, 'STREET CLOTHES', 'long trousers, heavy shoes', sstep(lt, .3, 1));
+  // Felix
+  g += man(760, 700, { s: 1.5, trousers: cut ? '' : '#6a5a48', mood: cut ? 'grin' : 'worry', pose: poseStand({ aUR: cut ? 140 + Math.sin(t * 8) * 12 : 20, aLR: cut ? 150 : 20 }), t });
+  // friend with scissors
+  const snipOpen = cut ? 0 : Math.abs(Math.sin(t * 10)) * 25;
+  g += man(470, 700, { s: 1.3, top: '#8c3b2e', hat: 'cap', mood: 'grin', dir: 1, pose: poseStand({ aUR: 100 + Math.sin(t * 10) * (cut ? 0 : 14), aLR: 95, aUL: -12 }), holding: 'scissors', t, trousers: '#5a5a50' });
+  // fallen trouser pieces
+  if (cut) { const f = prog(lt, snipAt, snipAt + .9); [[740, 1], [790, -1]].forEach(([x, sgn]) => g += poly([[x - 18, 590 + 100 * ease(f)], [x + 18, 590 + 100 * ease(f)], [x + 22 + sgn * 30 * f, 640 + 120 * ease(f)], [x - 22 + sgn * 30 * f, 640 + 120 * ease(f)]], '#6a5a48', { sw: 3, op: 1 - f * .7 })); }
+  if (cut) g += `<g opacity="${sstep(lt, snipAt, snipAt + .2)}">${tx(620, 380, 'SNIP!', { size: 80, font: MONO, w: 800, fill: '#8c3b2e', rot: -8 })}</g>`;
+  return g;
+}
+
+function scene5(t, lt, d) { // gun, run, chat
+  const u = lt / d, gun = .6;
+  let g = SKY() + clouds(t, 2) + hills(360, 21) + ground(400, '#d2c093') + stands(60, 260, 520, 3, 61, t, lt > gun ? 1 : 0) + stands(700, 260, 520, 3, 81, t, lt > gun ? 1 : 0);
+  g += poly([[0, 560], [1280, 560], [1280, 720], [0, 720]], '#dccb9f', { sw: 0 }) + path('M0 560 H1280', { sw: 3 });
+  g += rect(250, 560, 12, 160, '#f4ecd4', { sw: 3 });
+  const go = lt > gun, rp = go ? prog(lt, gun, gun + 3) : 0;
+  const run = go && u < .55;
+  const names = [[340, '#7a6a55'], [440, '#6b7a6a'], [540, '#8a6a6a'], [880, '#6a7a8a'], [980, '#8a8a6a']];
+  const sx = go ? ease(rp) * 1500 : 0;
+  names.forEach(([x, c], i) => { const xx = x + sx + (i % 2) * 20 * rp; if (xx < 1400) g += man(xx, 640 + (i % 2) * 20, { s: .95, top: c, pose: go ? poseRun(t * 8 + i) : poseStand({ tL: -10, sL: -10, tR: 8, sR: 8, lean: 10 }), mood: go ? 'grin' : 'worry', t, dir: 1 }); });
+  // Felix: runs, then stops to chat
+  const chat = prog(lt, d * .55, d * .55 + 1.2);
+  const fx = go ? lerp(640, 760, ease(clamp(rp))) : 640;
+  const stopped = u >= .6;
+  g += man(fx, 660, { s: 1.15, pose: go && !stopped ? poseRun(t * 8 + 1) : poseStand({ aUR: 110 + Math.sin(t * 6) * 20, aLR: 120 }), mood: stopped ? 'talk' : go ? 'grin' : 'happy', t, shoes: false });
+  if (stopped) {
+    g += man(980, 650, { s: 1.0, top: '#6b7a6a', hat: 'straw', mood: 'happy', pose: poseStand({ aUL: -40, aLL: -60 }), dir: -1, t: t + 2, trousers: '#6a6a5a' });
+    g += man(1130, 650, { s: .95, top: '#8a6a6a', hat: 'sunhat', mood: 'grin', pose: poseStand({ aUR: 130 }), dir: -1, t: t + 4, trousers: '#6a6a5a' });
+    g += bubbleTxt(930, 380, 130, 60, 'Nice day!', { op: sstep(lt, d * .62, d * .62 + .4), size: 22, tail: -1 });
+    g += bubbleTxt(690, 400, 150, 60, 'Hello there!', { op: sstep(lt, d * .7, d * .7 + .4), size: 22, tail: 1 });
+  }
+  // starter
+  g += man(170, 640, { s: 1.0, hat: 'bowler', top: '#4a4a44', trousers: '#4a4a44', mood: 'flat', pose: poseStand({ aUR: lt < gun ? 150 : 110, aLR: lt < gun ? 150 : 100 }), holding: 'pistol', t });
+  if (lt > gun && lt < gun + .5) { const k = prog(lt, gun, gun + .5); g += poly(Array.from({ length: 16 }, (_, i) => { const a = i / 16 * Math.PI * 2, r = (i % 2 ? 26 : 62) * (.4 + k); return [236 + 92 * k + Math.cos(a) * r, 520 - 10 * k + Math.sin(a) * r]; }), '#fbe28a', { sw: 3, op: 1 - k * .5 }); g += tx(330, 460, 'BANG!', { size: 66, font: MONO, w: 800, fill: '#8c3b2e', rot: -6, op: 1 - k * .6 }); }
+  if (lt > gun) g += circ(240 + (lt - gun) * 40, 500 - (lt - gun) * 40, 14 + (lt - gun) * 22, '#ece3cc', { stroke: '', sw: 0, op: Math.max(0, .6 - (lt - gun) * .2) });
+  return g;
+}
+
+function scene6(t, lt, d) { // apples
+  const u = lt / d;
+  let g = SKY() + clouds(t, 14) + hills(380, 31) + ground(430, '#cfbf8f');
+  for (let i = 0; i < 6; i++) g += tuft(80 + i * 230, 700 + (i % 2) * 10, 1.6);
+  const got = u > .22 ? 1 : 0;
+  g += tree(860, 640, 2.0, true, { got: Math.floor(prog(u, .15, .5) * 6) });
+  const reach = prog(u, .05, .25), eat = prog(u, .28, .6), sick = prog(u, .55, .8);
+  const skin = sick > 0 ? `rgb(${Math.round(lerp(246, 190, sick))},${Math.round(lerp(243, 214, sick))},${Math.round(lerp(234, 150, sick))})` : SKIN;
+  const pose = u < .26 ? poseStand({ aUR: lerp(10, 165, reach), aLR: lerp(10, 170, reach) }) : poseStand({ aUR: 80 + Math.sin(t * 9) * (sick < .3 ? 14 : 0), aLR: 175 - Math.sin(t * 9) * (sick < .3 ? 12 : 0), lean: sick * 6 * 0 });
+  g += man(500, 680, { s: 1.4, pose, mood: u < .26 ? 'happy' : sick > .3 ? 'sick' : 'eat', t, skin, shoes: false, holding: u > .26 && u < .6 ? 'apple' : '' });
+  if (sick > .1) { for (let i = 0; i < 3; i++) g += path(`M${420 + i * 18} ${470 - (t * 20 % 10)} q10 -14 0 -26 q-10 -14 0 -26`, { sw: 3, stroke: '#7d9560', op: sick }); g += tx(500, 220, 'blurp...', { size: 40, font: MONO, w: 800, fill: '#5d7a42', op: sick, rot: -6 }); }
+  g += stamp(900, 220, 'ROTTEN!', -8, '#8c3b2e', sstep(u, .6, .72), 66);
+  return g;
+}
+
+function scene7(t, lt, d) { // nap
+  const u = lt / d;
+  const sx = lerp(300, 1000, u), sy = 200 + Math.sin(u * Math.PI) * -60;
+  let g = SKY() + sun(sx, 220 - Math.sin(u * Math.PI) * 60, 46) + clouds(t, 17) + hills(380, 33) + ground(430, '#cfbf8f');
+  g += tree(900, 640, 2.0, false) + `<rect x="0" y="0" width="${W}" height="${H}" fill="#7a5a30" opacity="${.12 * Math.sin(u * Math.PI)}"/>`;
+  g += man(640, 690, { s: 1.3, rot: -90, pose: poseStand({ aUL: -10, aUR: 12 }), mood: 'sleep', t, shoes: false }).replace(/$/, '');
+  for (let i = 0; i < 3; i++) { const k = ((t * .5 + i / 3) % 1); g += tx(330 + k * 80, 560 - k * 190, 'Z', { size: 34 + 36 * k, font: MONO, w: 800, fill: '#5a4f3a', op: 1 - k, rot: -10 }); }
+  return g;
+}
+
+function scene8(t, lt, d) { // Lorz car + stadium
+  const u = lt / d;
+  let g = '';
+  if (u < .55) {
+    const k = u / .55, cx = lerp(-250, 1500, k);
+    g += roadBG((t * .08) % 1, { t });
+    g += dust(cx - 100, 570, t, 1.2, 6) + car(cx, 580, 1.35, t);
+    g += tag(36, 36, 'FRED LORZ', 'got a lift: 11 miles', sstep(lt, .6, 1.3));
+    g += tx(640, 140, '11 MILES BY CAR', { size: 50, font: MONO, w: 800, fill: '#8c3b2e', op: sstep(u, .12, .25) * (1 - sstep(u, .45, .55)), rot: -2 });
+  } else {
+    const k = (u - .55) / .45;
+    g += SKY() + clouds(t, 5) + ground(430, '#d2c093') + stands(40, 250, 560, 3, 111, t, 1) + stands(680, 250, 560, 3, 131, t, 1);
+    g += poly([[0, 560], [1280, 560], [1280, 720], [0, 720]], '#dccb9f', { sw: 0 }) + path('M0 560 H1280', { sw: 3 });
+    g += man(lerp(-100, 700, ease(k)), 680, { s: 1.3, pose: poseRun(t * 6), mood: 'smug', t, dir: 1 });
+    g += tx(640, 140, 'CHEERS!', { size: 70, font: MONO, w: 800, fill: '#8c3b2e', op: sstep(k, .3, .5), rot: -3 });
+  }
+  return g;
+}
+
+function scene9(t, lt, d) { // found out + Hicks
+  const u = lt / d;
+  let g = SKY() + clouds(t, 8) + ground(430, '#d2c093');
+  if (u < .4) {
+    g += stands(40, 220, 1200, 2, 151, t, 0);
+    g += poly([[0, 560], [1280, 560], [1280, 720], [0, 720]], '#dccb9f', { sw: 0 }) + path('M0 560 H1280', { sw: 3 });
+    g += man(480, 690, { s: 1.35, mood: 'sad', pose: poseStand({ aUL: -30, aLL: -50, aUR: 30, aLR: 50 }), t });
+    g += man(900, 690, { s: 1.35, hat: 'bowler', top: '#4a4a44', trousers: '#4a4a44', mood: 'flat', dir: -1, pose: poseStand({ aUR: 110, aLR: 100 }), t });
+    g += tx(900, 250, '!', { size: 120, font: MONO, w: 800, fill: '#8c3b2e', op: sstep(lt, .4, .7) });
+    g += bubbleTxt(300, 250, 280, 64, 'It was a joke!', { op: sstep(lt, 2.2, 2.6), size: 26, tail: 1 });
+    g += stamp(900, 160, 'BUSTED', -6, '#8c3b2e', sstep(lt, 1.0, 1.3), 56);
+  } else {
+    g += hills(380, 7) + path('M0 560 H1280', { sw: 3 }) + poly([[0, 560], [1280, 560], [1280, 720], [0, 720]], '#dccb9f', { sw: 0 });
+    g += tag(36, 36, 'THOMAS HICKS', 'the real winner', sstep(lt, d * .42, d * .42 + .8));
+    const wob = Math.sin(t * 3) * 14;
+    g += man(640 + wob, 700, { s: 1.45, mood: 'dizzy', pose: poseWalk(t * 2.2, { lean: 18, aUL: -50, aLL: -70, aUR: 50, aLR: 70 }), t, look: 0 });
+    g += man(460, 680, { s: 1.15, top: '#6b7a6a', trousers: '#5a5a50', hat: 'cap', mood: 'worry', pose: poseStand({ aUR: 70, aLR: 60 }), t, holding: 'bottle' });
+    g += man(840, 680, { s: 1.15, top: '#8a6a6a', trousers: '#5a5a50', mood: 'worry', dir: -1, pose: poseStand({ aUR: 80, aLR: 70 }), t });
+    g += tx(640, 160, 'BRANDY + STRYCHNINE', { size: 40, font: MONO, w: 800, fill: '#8c3b2e', op: sstep(lt, d * .6, d * .6 + .6) });
+  }
+  return g;
+}
+
+function scene10(t, lt, d) { // Len Tau & dogs
+  const u = lt / d;
+  let g = roadBG((t * .12) % 1, { t });
+  const TAU = '#b98a5e';
+  g += tag(36, 36, 'LEN TAU', 'Tswana runner', sstep(lt, .4, 1.1));
+  const px = lerp(330, 760, ease(u));
+  g += man(px, 650, { s: 1.45, skin: TAU, pose: poseRun(t * 9), mood: 'shock', t, look: -1, shoes: false });
+  [0, 1, 2].forEach(i => g += dog(px - 220 - i * 110 + Math.sin(t * 3 + i) * 12, 640 + i * 28, 1.0 - i * .1, t + i * .3));
+  g += dust(px - 40, 650, t, 1.3, 5);
+  g += tx(640, 130, 'WILD DOGS', { size: 56, font: MONO, w: 800, fill: '#8c3b2e', op: sstep(lt, 2, 2.5) * (1 - sstep(lt, d * .62, d * .7)) });
+  g += stamp(1000, 220, '9TH', 8, '#2f5a3a', sstep(lt, d * .7, d * .8), 90);
+  return g;
+}
+
+function scene11(t, lt, d) { // Felix wakes, runs, finishes 4th
+  const u = lt / d;
+  let g = '';
+  if (u < .45) {
+    const wk = prog(u, .0, .4);
+    g += SKY() + hills(380, 33) + ground(430, '#cfbf8f') + tree(900, 640, 2.0, false);
+    g += man(640, 690, { s: 1.35, rot: lerp(-90, 0, ease(prog(wk, .1, .8))), pose: poseStand({ aUR: lerp(12, 160, prog(wk, .6, 1)), aLR: lerp(12, 170, prog(wk, .6, 1)) }), mood: wk < .35 ? 'sleep' : wk < .7 ? 'shock' : 'happy', t, shoes: false });
+    g += tx(640, 160, 'WAKE UP!', { size: 62, font: MONO, w: 800, fill: '#8c3b2e', op: sstep(wk, .4, .6), rot: -4 });
+  } else {
+    const k = (u - .45) / .55;
+    g += SKY() + clouds(t, 7) + ground(430, '#d2c093') + stands(40, 230, 560, 3, 211, t, 1) + stands(680, 230, 560, 3, 231, t, 1);
+    g += poly([[0, 560], [1280, 560], [1280, 720], [0, 720]], '#dccb9f', { sw: 0 }) + path('M0 560 H1280', { sw: 3 });
+    const fx = lerp(-100, 800, ease(clamp(k / .8)));
+    // finish tape
+    const hit = k > .8;
+    g += path(`M780 560 V690`, { sw: 6 }) + path(`M1150 560 V690`, { sw: 6 });
+    g += hit ? path('M780 640 l-30 20 M1150 640 l30 20', { sw: 5, stroke: '#8c3b2e' }) : path('M780 640 H1150', { sw: 6, stroke: '#8c3b2e' });
+    g += man(fx, 700, { s: 1.4, pose: k < .85 ? poseRun(t * 8) : poseStand({ aUR: 150, aUL: -150, aLR: 160, aLL: -160 }), mood: 'grin', t, shoes: false });
+    g += stamp(640, 200, '4TH PLACE', -4, '#2f5a3a', sstep(k, .78, .92), 80);
+  }
+  return g;
+}
+
+function scene12(t, lt, d) { // moral
+  const u = lt / d;
+  let g = `<rect width="${W}" height="${H}" fill="url(#sky)"/>` + ground(520, '#cdb88a');
+  g += man(900, 700, { s: 1.7, pose: poseStand({ aUR: 150 + Math.sin(t * 6) * 18, aLR: 160 + Math.sin(t * 6) * 14 }), mood: 'happy', t, shoes: false });
+  const items = [['NO MONEY', .8], ['NO COACH', 2.0], ['NO SHOES', 3.2]];
+  items.forEach(([s, a], i) => g += tx(80, 150 + i * 80, s, { size: 54, font: MONO, w: 800, anchor: 'start', fill: '#5a4f3a', op: sstep(lt, a, a + .4) }));
+  g += `<g opacity="${sstep(lt, 4.4, 4.9)}" transform="rotate(-3 300 400)">${rect(60, 380, 520, 100, '#f4ecd4', { sw: 5, r: 4 })}${tx(320, 450, '4TH PLACE', { size: 70, font: MONO, w: 800, fill: '#2f5a3a' })}</g>`;
+  const e = sstep(lt, d - 4.8, d - 4.2);
+  if (e > 0) g += `<g opacity="${e}"><rect width="${W}" height="${H}" fill="#cdb88a"/>${tx(640, 320, 'Never underestimate', { size: 58, font: MONO, w: 800 })}${tx(640, 392, 'someone who simply shows up.', { size: 58, font: MONO, w: 800, fill: '#8c3b2e' })}${tx(640, 520, 'AI Command Desk', { size: 34, font: MONO, w: 800, fill: '#5a4f3a' })}${tx(640, 560, 'aicommanddesk.com', { size: 24, font: MONO, w: 400, fill: '#5a4f3a' })}</g>`;
+  return g;
+}
+
+const SCENES = [scene0, scene1, scene2, scene3, scene4, scene5, scene6, scene7, scene8, scene9, scene10, scene11, scene12];
+
+// ======================= captions & film =======================
+function captions(t) {
+  const i = L.findIndex(l => t >= l.start - .05 && t <= l.end + .15);
+  if (i < 0) return '';
+  const l = L[i], words = l.text.replace(/[.,]/g, m => m).split(/\s+/);
+  const chunks = []; for (let k = 0; k < words.length; k += 3) chunks.push(words.slice(k, k + 3).join(' '));
+  const tot = chunks.reduce((a, c) => a + c.length, 0); let acc = 0, cur = chunks[chunks.length - 1];
+  const p = (t - l.start) / (l.end - l.start);
+  for (const c of chunks) { acc += c.length; if (p * tot <= acc) { cur = c; break; } }
+  const txt = cur.toUpperCase().replace(/[.,]$/, '');
+  if (V) return tx(360, 1130, txt, { size: Math.min(74, 640 / (txt.length * .78)), fill: '#fff', stroke: INK, sw: 12, w: 900, font: '"DejaVu Sans",sans-serif' });
+  return tx(640, 694, txt, { size: 46, fill: '#fff', stroke: INK, sw: 9, w: 900, font: '"DejaVu Sans",sans-serif' });
+}
+function defs(t) {
+  const seed = 1 + Math.floor(t * 8) % 9, gs = 1 + Math.floor(t * 24) % 50;
+  return `<defs>
+  <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdbf9b"/><stop offset=".6" stop-color="#e6dbbd"/><stop offset="1" stop-color="#efe6cc"/></linearGradient>
+  <filter id="boil" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="${seed}" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G"/></filter>
+  <filter id="grain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="${gs}" result="g"/><feColorMatrix type="matrix" values="0 0 0 0 .2  0 0 0 0 .15  0 0 0 0 .08  0 0 0 .9 -.25"/></filter>
+  <pattern id="sl" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="2" fill="#2a2010" opacity=".13"/></pattern>
+  <radialGradient id="vig" cx=".5" cy=".5" r=".75"><stop offset=".55" stop-color="#1b1408" stop-opacity="0"/><stop offset="1" stop-color="#1b1408" stop-opacity=".62"/></radialGradient>
+  </defs>`;
+}
+const FOCUS = [
+  () => [640, 960], (u) => [lerp(560, 780, u), 820], () => [640, 780],
+  (u) => u < .36 ? [580, 780] : u < .64 ? [640, 1020] : [640, 860],
+  () => [620, 800],
+  (u) => [lerp(640, 860, prog(u, .5, .65)), lerp(1000, 800, prog(u, .5, .65))],
+  () => [660, 820], () => [640, 960], () => [640, 1040], (u) => u < .4 ? [640, 960] : [640, 860],
+  (u) => [lerp(480, 640, u), 880], (u) => u < .45 ? [640, 780] : [740, 1040], () => [540, 1000],
+];
+function frameV(t) {
+  const i = sceneAt(t), lt = t - SC[i], d = SC[i + 1] - SC[i], u = lt / d;
+  CAPTAG = null;
+  const [cx, vw] = FOCUS[i](u), sc = 720 / vw, hWin = H * sc, yWin = 640 - hWin / 2;
+  const body = SCENES[i](t, lt, d);
+  let o = defs(t) + `<rect width="720" height="1280" fill="#2a2113"/>`;
+  o += `<clipPath id="win"><rect x="0" y="${f2(yWin)}" width="720" height="${f2(hWin)}"/></clipPath>`;
+  o += `<g clip-path="url(#win)"><g filter="url(#boil)"><g transform="translate(0 ${f2(yWin)}) scale(${f2(sc)}) translate(${f2(-(cx - vw / 2))} 0)">${body}</g></g></g>`;
+  o += rect(0, yWin - 4, 720, 8, INK, { sw: 0 }) + rect(0, yWin + hWin - 4, 720, 8, INK, { sw: 0 });
+  // header
+  o += tx(360, 92, 'THE STRANGEST', { size: 58, fill: '#f4ecd4', font: MONO, w: 800 }) + tx(360, 156, 'MARATHON EVER', { size: 58, fill: '#e6b07a', font: MONO, w: 800 });
+  o += tx(360, 200, 'A TRUE OLYMPIC STORY · 1904', { size: 24, fill: '#bfae85', font: MONO, w: 700, ls: 2 });
+  if (CAPTAG && CAPTAG.op > 0) o += `<g opacity="${f2(CAPTAG.op)}">${rect(150, yWin - 78, 420, 64, '#f4ecd4', { sw: 3, r: 4 })}${tx(360, yWin - 50, CAPTAG.a, { size: 24, font: MONO, w: 800 })}${tx(360, yWin - 26, CAPTAG.b, { size: 18, font: MONO, w: 500, fill: '#5a4f3a' })}</g>`;
+  o += `<rect width="720" height="1280" fill="url(#sl)"/><rect width="720" height="1280" filter="url(#grain)" opacity=".4"/><rect width="720" height="1280" fill="url(#vig)"/>`;
+  if (!(i === 12 && lt > d - 4.8)) o += captions(t);
+  o += tx(360, 1236, 'AI COMMAND DESK', { size: 26, fill: '#bfae85', font: MONO, w: 800, ls: 3 });
+  if (i > 0 && lt < .22) o += `<rect width="720" height="1280" fill="#1b1408" opacity="${f2(1 - lt / .22)}"/>`;
+  if (t < .5) o += `<rect width="720" height="1280" fill="#1b1408" opacity="${f2(1 - t / .5)}"/>`;
+  if (t > T.total - .8) o += `<rect width="720" height="1280" fill="#1b1408" opacity="${f2(1 - (T.total - t) / .8)}"/>`;
+  return o;
+}
+function frame(t) {
+  if (V) return frameV(t);
+  const i = sceneAt(t), lt = t - SC[i], d = SC[i + 1] - SC[i];
+  const zoom = 1 + .045 * (lt / d), pan = (lt / d - .5) * -14 * (i % 2 ? 1 : -1);
+  let o = defs(t) + `<rect width="${W}" height="${H}" fill="#e6dbbd"/>`;
+  o += `<g filter="url(#boil)"><g transform="translate(${f2(640 + pan)} 360) scale(${f2(zoom)}) translate(-640 -360)">${SCENES[i](t, lt, d)}</g></g>`;
+  o += `<rect width="${W}" height="${H}" fill="url(#sl)"/><rect width="${W}" height="${H}" filter="url(#grain)" opacity=".5"/><rect width="${W}" height="${H}" fill="url(#vig)"/>`;
+  o += `<rect width="${W}" height="${H}" fill="#fff" opacity="${(.02 + .02 * Math.sin(t * 61)).toFixed(3)}"/>`;
+  if (i < 12 || lt < d - 4.8) o += captions(t);
+  const edge = Math.min(lt, d - lt), fadeA = 1 - clamp(edge / .22);
+  if (i > 0 && lt < .22) o += `<rect width="${W}" height="${H}" fill="#1b1408" opacity="${f2(1 - lt / .22)}"/>`;
+  if (t < .5) o += `<rect width="${W}" height="${H}" fill="#1b1408" opacity="${f2(1 - t / .5)}"/>`;
+  if (t > T.total - .8) o += `<rect width="${W}" height="${H}" fill="#1b1408" opacity="${f2(1 - (T.total - t) / .8)}"/>`;
+  o += `<rect x="0" y="0" width="${W}" height="10" fill="#111"/><rect x="0" y="${H - 10}" width="${W}" height="10" fill="#111"/>`;
+  return o;
+}
+function render(t) { document.getElementById('s').innerHTML = frame(t); }
+window.render = render; window.DURATION = T.total;
+render(+(new URLSearchParams(location.search).get('t') || 0));
+</script>
+</body>
+</html>

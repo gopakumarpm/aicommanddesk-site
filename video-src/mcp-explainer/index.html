@@ -1,0 +1,288 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>How MCP Works – stickman explainer</title>
+<style>
+  html,body{margin:0;background:#1a1a2e}
+  svg{display:block;width:1280px;height:720px;font-family:"Comic Sans MS","Comic Neue","Segoe Print","Chalkboard SE","DejaVu Sans",sans-serif}
+</style>
+</head>
+<body>
+<svg id="s" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg"></svg>
+<script>
+const W = 1280, H = 720;
+const C = {
+  bg: '#1a1a2e', ink: '#f4f4f8', dim: '#8d8db3', claude: '#e8815c', gpt: '#19c37d',
+  mcp: '#4f8cff', warn: '#ff5d73', gold: '#ffd166', box: '#242444', purple: '#c084fc'
+};
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const ease = p => p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+const eo = p => 1 - Math.pow(1 - p, 3);
+const lerp = (a, b, p) => a + (b - a) * p;
+const fade = (t, a, b = a + .5) => eo(prog(t, a, b));
+const fout = (t, a, b = a + .5) => 1 - eo(prog(t, a, b));
+
+// ---------- primitives ----------
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+function text(x, y, s, o = {}) {
+  const { size = 28, fill = C.ink, anchor = 'middle', weight = 700, op = 1, mono = false } = o;
+  if (op <= 0 || !s) return '';
+  return `<text x="${x}" y="${y}" font-size="${size}" fill="${fill}" text-anchor="${anchor}" font-weight="${weight}" opacity="${op}"${mono ? ' font-family="DejaVu Sans Mono,monospace"' : ''}>${esc(s)}</text>`;
+}
+function box(x, y, w, h, o = {}) {
+  const { fill = C.box, stroke = C.dim, r = 14, op = 1, sw = 3, dash = '' } = o;
+  if (op <= 0) return '';
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" opacity="${op}"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`;
+}
+function line(x1, y1, x2, y2, o = {}) {
+  const { stroke = C.ink, sw = 4, op = 1, p = 1 } = o;
+  if (op <= 0 || p <= 0) return '';
+  return `<path d="M${x1} ${y1} L${x2} ${y2}" stroke="${stroke}" stroke-width="${sw}" fill="none" stroke-linecap="round" opacity="${op}" pathLength="1" stroke-dasharray="1" stroke-dashoffset="${1 - p}"/>`;
+}
+function curve(x1, y1, x2, y2, bend, o = {}) {
+  const { stroke = C.ink, sw = 4, op = 1, p = 1 } = o;
+  if (op <= 0 || p <= 0) return '';
+  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2 + bend;
+  return `<path d="M${x1} ${y1} Q${mx} ${my} ${x2} ${y2}" stroke="${stroke}" stroke-width="${sw}" fill="none" stroke-linecap="round" opacity="${op}" pathLength="1" stroke-dasharray="1" stroke-dashoffset="${1 - p}"/>`;
+}
+function arrow(x1, y1, x2, y2, o = {}) {
+  const { stroke = C.mcp, sw = 5, op = 1, p = 1 } = o;
+  if (op <= 0 || p <= 0) return '';
+  const a = Math.atan2(y2 - y1, x2 - x1), ex = lerp(x1, x2, p), ey = lerp(y1, y2, p), hx = 14;
+  return line(x1, y1, ex, ey, { stroke, sw, op }) +
+    (p > .98 ? `<path d="M${x2} ${y2} L${x2 - hx * Math.cos(a - .5)} ${y2 - hx * Math.sin(a - .5)} M${x2} ${y2} L${x2 - hx * Math.cos(a + .5)} ${y2 - hx * Math.sin(a + .5)}" stroke="${stroke}" stroke-width="${sw}" fill="none" stroke-linecap="round" opacity="${op}"/>` : '');
+}
+// message packet travelling between two points; p in (0,1)
+function packet(x1, y1, x2, y2, p, label, o = {}) {
+  if (p <= 0 || p >= 1) return '';
+  const { fill = C.gold, w = Math.max(70, label.length * 12 + 24) } = o;
+  const x = lerp(x1, x2, ease(p)), y = lerp(y1, y2, ease(p));
+  return `<g>${box(x - w / 2, y - 18, w, 36, { fill, stroke: '#fff', r: 10, sw: 2 })}${text(x, y + 7, label, { size: 19, fill: '#1a1a2e', mono: true })}</g>`;
+}
+function chip(x, y, label, color, op = 1, w = label.length * 13 + 30) {
+  if (op <= 0) return '';
+  return `<g opacity="${op}">${box(x - w / 2, y - 20, w, 40, { fill: color, stroke: color, r: 20 })}${text(x, y + 7, label, { size: 20, fill: '#1a1a2e' })}</g>`;
+}
+function cloud(x, y, label, op = 1) {
+  return `<g opacity="${op}"><path d="M${x - 70} ${y + 30} a28 28 0 0 1 4 -54 a40 40 0 0 1 76 -8 a30 30 0 0 1 24 62 z" fill="${C.box}" stroke="${C.dim}" stroke-width="3"/>${text(x, y + 10, label, { size: 22 })}</g>`;
+}
+function serverBox(x, y, w, h, title, sub, color, op = 1) {
+  if (op <= 0) return '';
+  return `<g opacity="${op}">${box(x, y, w, h, { stroke: color })}${text(x + w / 2, y + 40, title, { size: 24 })}${text(x + w / 2, y + 70, sub, { size: 18, fill: C.dim, weight: 400 })}</g>`;
+}
+function bubble(x, y, w, h, lines, o = {}) {
+  const { op = 1, size = 22, tail = 'bottom-left' } = o;
+  if (op <= 0) return '';
+  const tx = x + 40;
+  let g = `<g opacity="${op}"><path d="M${tx} ${y + h - 2} l-10 28 l38 -28 z" fill="#fff"/>${box(x, y, w, h, { fill: '#fff', stroke: '#fff', r: 18 })}`;
+  const ls = Array.isArray(lines) ? lines : [lines];
+  ls.forEach((l, i) => { g += text(x + w / 2, y + h / 2 + size / 3 + (i - (ls.length - 1) / 2) * (size + 6), l, { size, fill: '#1a1a2e' }); });
+  return g + '</g>';
+}
+
+// ---------- stickman ----------
+function stick(cx, gy, o = {}) {
+  const { s = 1, color = C.ink, aL = 10, aR = 10, label = '', mood = 'smile', op = 1, bob = 0, think = 0 } = o;
+  if (op <= 0) return '';
+  const hip = gy - 55 * s + bob, neck = hip - 60 * s, hr = 22 * s, hy = neck - hr, sy = neck + 10 * s, L = 46 * s;
+  const rad = d => d * Math.PI / 180;
+  const lx = cx - Math.sin(rad(aL)) * L, ly = sy + Math.cos(rad(aL)) * L;
+  const rx = cx + Math.sin(rad(aR)) * L, ry = sy + Math.cos(rad(aR)) * L;
+  const mouth = mood === 'think' ? `M${cx - 6 * s} ${hy + 11 * s} L${cx + 6 * s} ${hy + 11 * s}`
+    : `M${cx - 8 * s} ${hy + 8 * s} Q${cx} ${hy + 16 * s} ${cx + 8 * s} ${hy + 8 * s}`;
+  const st = `stroke="${color}" stroke-width="${5 * s}" stroke-linecap="round" fill="none"`;
+  let g = `<g opacity="${op}">`;
+  g += `<circle cx="${cx}" cy="${hy}" r="${hr}" ${st} fill="${C.bg}"/>`;
+  g += `<circle cx="${cx - 8 * s}" cy="${hy - 4 * s}" r="${2.6 * s}" fill="${color}"/><circle cx="${cx + 8 * s}" cy="${hy - 4 * s}" r="${2.6 * s}" fill="${color}"/>`;
+  g += `<path d="${mouth}" stroke="${color}" stroke-width="${3 * s}" fill="none" stroke-linecap="round"/>`;
+  g += `<path d="M${cx} ${neck} L${cx} ${hip} M${cx} ${hip} L${cx - 26 * s} ${gy + bob} M${cx} ${hip} L${cx + 26 * s} ${gy + bob} M${cx} ${sy} L${lx} ${ly} M${cx} ${sy} L${rx} ${ry}" ${st}/>`;
+  if (label) {
+    const w = label.length * 13 * s + 26 * s;
+    g += `<rect x="${cx - w / 2}" y="${gy + 14}" width="${w}" height="${34 * s}" rx="${17 * s}" fill="${color}"/>`;
+    g += `<text x="${cx}" y="${gy + 14 + 24 * s}" font-size="${20 * s}" font-weight="700" fill="#1a1a2e" text-anchor="middle">${esc(label)}</text>`;
+  }
+  if (think) {
+    g += [0, 1, 2].map(i => `<circle cx="${cx + 38 * s + i * 14 * s}" cy="${hy - 30 * s - i * 8 * s}" r="${(3 + i * 1.5) * s}" fill="${C.ink}" opacity="${.35 + .65 * (((Math.sin(think * 6) + 1) / 2 + i / 3) % 1)}"/>`).join('');
+  }
+  return g + '</g>';
+}
+
+// ---------- captions ----------
+const CAPS = [
+  [0.3, 5.7, 'Claude, ChatGPT and other AI agents are smart…'],
+  [5.7, 8.0, '…but out of the box they can’t reach your files, apps or data.'],
+  [8.0, 15.0, 'Wiring every AI to every tool means custom glue code. Every. Single. Time.'],
+  [15.0, 19.5, 'MCP — the Model Context Protocol — is one open standard for that connection.'],
+  [19.5, 24.0, 'Think of it as USB‑C for AI: build each side once and everything plugs in.'],
+  [24.0, 29.0, 'The host app (Claude, ChatGPT…) runs an MCP client — one per server.'],
+  [29.0, 34.0, 'Each MCP server wraps a tool or data source and offers Tools, Resources and Prompts.'],
+  [34.0, 37.0, 'Watch it work. You ask: “Summarise my open pull requests.”'],
+  [37.0, 40.5, 'Step 1: the client asks the server “What can you do?” and gets a tool list.'],
+  [40.5, 43.5, 'Step 2: the model reads the menu and picks the tool it needs.'],
+  [43.5, 47.0, 'Step 3: the client sends the call — usually after you approve it.'],
+  [47.0, 50.5, 'Step 4: the server talks to GitHub and sends the result back.'],
+  [50.5, 54.0, 'Step 5: the model turns raw data into a clear answer.'],
+  [54.0, 61.0, 'Same standard, same server — it works with Claude, ChatGPT and any MCP‑capable assistant.'],
+  [61.0, 68.0, 'Recap: host + client, servers, one shared protocol.'],
+];
+function caption(t) {
+  let out = '';
+  for (const [a, b, s] of CAPS) {
+    if (t >= a && t < b) {
+      const op = Math.min(fade(t, a, a + .3), fout(t, b - .25, b));
+      const w = Math.min(1200, s.length * 13.6 + 60);
+      out += `<g opacity="${op}">${box(W / 2 - w / 2, 650, w, 52, { fill: '#0e0e1c', stroke: '#0e0e1c', r: 14 })}${text(W / 2, 685, s, { size: 24, weight: 400 })}</g>`;
+    }
+  }
+  return out;
+}
+function title(s, t, a, b, sub) {
+  const op = Math.min(fade(t, a, a + .5), fout(t, b - .4, b));
+  return text(W / 2, 70, s, { size: 44, op }) + (sub ? text(W / 2, 108, sub, { size: 22, fill: C.dim, weight: 400, op }) : '');
+}
+
+// ---------- scenes ----------
+const GY = 590;
+
+function sceneIntro(t) { // 0-8
+  let o = text(W / 2, 170, 'How MCP Works', { size: 84, op: fade(t, .2, .9) });
+  o += text(W / 2, 230, 'Model Context Protocol, explained with stick figures', { size: 28, fill: C.mcp, op: fade(t, .8, 1.5) });
+  const wave = Math.sin(t * 6) * 22;
+  o += stick(300, GY - 50, { s: 1.5, color: C.claude, label: 'Claude', aR: 150 + wave, aL: 15, op: fade(t, 0, .5) });
+  o += stick(980, GY - 50, { s: 1.5, color: C.gpt, label: 'ChatGPT', aL: 150 - wave, aR: 15, op: fade(t, .3, .8) });
+  o += `<g opacity="${fade(t, 5.7)}">${cloud(640, 400, 'Your files')}</g>`;
+  o += `<g opacity="${fade(t, 5.9)}">${box(550, 460, 180, 60, { fill: C.box, stroke: C.dim })}${text(640, 500, 'Your apps', { size: 22 })}</g>`;
+  o += `<g opacity="${fade(t, 6.2)}">${box(440, 350, 400, 190, { fill: 'none', stroke: C.warn, dash: '12 10' })}${text(640, 335, 'LOCKED OUT', { size: 26, fill: C.warn })}</g>`;
+  return o;
+}
+
+const TOOLS = [['GitHub', 190], ['Files', 330], ['Database', 470]];
+function scenePain(t) { // 8-15
+  const lt = t - 8, ax = 190, bx = 960;
+  let o = title('The problem', t, 8, 15, 'Every AI × every tool = another custom connector');
+  o += stick(ax, 330, { color: C.claude, label: 'Claude', aR: 60, op: fade(lt, 0) });
+  o += stick(ax, 580, { color: C.gpt, label: 'ChatGPT', aR: 60, op: fade(lt, 2.2) });
+  TOOLS.forEach(([n, y], i) => { o += serverBox(bx, y - 10, 220, 100, n, 'app / data', C.dim, fade(lt, .2 + i * .2)); });
+  const cols = [C.warn, C.gold, C.purple];
+  TOOLS.forEach(([n, y], i) => {
+    o += curve(ax + 55, 270, bx, y + 40, (i - 1) * 60, { stroke: cols[i], p: ease(prog(lt, .8 + i * .5, 1.8 + i * .5)) });
+    o += curve(ax + 55, 520, bx, y + 40, (1 - i) * 60, { stroke: cols[(i + 1) % 3], p: ease(prog(lt, 3 + i * .5, 4 + i * .5)) });
+  });
+  o += `<g opacity="${fade(lt, 4.8)}">${box(400, 330, 420, 110, { fill: '#0e0e1c', stroke: C.warn, r: 16 })}${text(610, 378, '6 custom connectors', { size: 32, fill: C.warn })}${text(610, 414, 'to build, test & maintain', { size: 22, fill: C.dim, weight: 400 })}</g>`;
+  return o;
+}
+
+function sceneFix(t) { // 15-24
+  const lt = t - 15, ax = 170, bx = 1000, hubX = 590;
+  let o = title('The fix: one open standard', t, 15, 24);
+  o += stick(ax, 330, { color: C.claude, label: 'Claude', aR: 60 });
+  o += stick(ax, 580, { color: C.gpt, label: 'ChatGPT', aR: 60 });
+  TOOLS.forEach(([n, y]) => { o += serverBox(bx - 40, y - 10, 220, 100, n, 'app / data', C.dim); });
+  o += `<g opacity="${fade(lt, .6)}">${box(hubX - 90, 295, 180, 150, { fill: C.mcp, stroke: C.mcp, r: 26 })}${text(hubX, 358, 'MCP', { size: 52, fill: '#fff' })}${text(hubX, 398, 'open standard', { size: 18, fill: '#dbe7ff', weight: 400 })}</g>`;
+  const p = ease(prog(lt, 1.4, 3)), q = ease(prog(lt, 2.8, 4.2));
+  [270, 520].forEach(y => { o += arrow(ax + 55, y, hubX - 92, 370, { p }); });
+  TOOLS.forEach(([n, y]) => { o += arrow(hubX + 92, 370, bx - 42, y + 40, { p: q }); });
+  o += `<g opacity="${fade(lt, 4.6)}">${text(hubX, 530, 'Like USB‑C for AI', { size: 44, fill: C.mcp })}${text(hubX, 570, '2 + 3 plugs instead of 2 × 3 cables', { size: 24, fill: C.dim, weight: 400 })}</g>`;
+  return o;
+}
+
+function sceneArch(t) { // 24-34
+  const lt = t - 24, hx = 70, hw = 540, hy = 140, hh = 420, sx = 840, sw = 330;
+  let o = title('The big picture', t, 24, 34);
+  o += `<g opacity="${fade(lt, 0)}">${box(hx, hy, hw, hh, { fill: '#202040', stroke: C.claude, r: 24, dash: '14 8' })}${text(hx + hw / 2, hy + 36, 'HOST  (Claude app / ChatGPT)', { size: 24, fill: C.claude })}</g>`;
+  o += stick(hx + 110, 535, { s: 1.1, color: C.claude, label: 'AI model', aR: 70, op: fade(lt, .5), bob: Math.sin(lt * 3) * 2 });
+  [['GitHub', 200], ['Files', 330], ['Database', 460]].forEach(([n, y], i) => {
+    o += `<g opacity="${fade(lt, 2 + i * .4)}">${box(hx + 290, y + 6, 230, 80, { fill: C.mcp, stroke: C.mcp, r: 16 })}${text(hx + 405, y + 55, 'MCP client', { size: 24, fill: '#fff' })}</g>`;
+    o += serverBox(sx, y, sw, 92, n + ' server', 'MCP server', C.mcp, fade(lt, 3.8 + i * .4));
+    o += arrow(hx + 250, 440, hx + 288, y + 46, { p: ease(prog(lt, 2.4 + i * .4, 3.2 + i * .4)), stroke: C.dim, sw: 3 });
+    o += arrow(hx + 522, y + 46, sx - 2, y + 46, { p: ease(prog(lt, 3.4 + i * .4, 4.2 + i * .4)), stroke: C.gold });
+  });
+  o += text(725, 140, 'JSON‑RPC messages', { size: 22, fill: C.gold, weight: 400, op: fade(lt, 5) });
+  o += text(900, 584, 'Each server offers:', { size: 20, fill: C.dim, weight: 400, op: fade(lt, 6.2) });
+  [['Tools: actions', C.gold], ['Resources: data', C.gpt], ['Prompts: templates', C.purple]].forEach(([l, c], i) => {
+    o += chip(710 + i * 190, 618, l, c, fade(lt, 6.4 + i * .6), 180).replace(/font-size="20"/g, 'font-size="16"');
+  });
+  return o;
+}
+
+function sceneWalk(t) { // 34-54
+  const lt = t - 34, hx = 235, hw = 470, hy = 140, hh = 420, cx = 580, sx = 810, sw = 200, yA = 280, yB = 340, GY2 = 585;
+  const step = lt < 3 ? 0 : lt < 6.5 ? 1 : lt < 9.5 ? 2 : lt < 13 ? 3 : lt < 16.5 ? 4 : 5;
+  const thinking = lt >= 6.5 && lt < 9.5;
+  let o = title('One request, step by step', t, 34, 54);
+  o += stick(95, GY2, { s: 1.05, color: C.ink, label: 'You', aR: 40 + (lt < 3 ? 50 + Math.sin(lt * 9) * 15 : 0) });
+  o += box(hx, hy, hw, hh, { fill: '#202040', stroke: C.claude, r: 24, dash: '14 8' });
+  o += text(hx + hw / 2, hy + 34, 'HOST (Claude / ChatGPT)', { size: 22, fill: C.claude });
+  o += stick(hx + 90, GY2 - 10, { color: C.claude, label: 'Model', aR: 70, think: thinking ? lt : 0, mood: thinking ? 'think' : 'smile' });
+  o += `<g>${box(cx - 100, 240, 200, 120, { fill: C.mcp, stroke: C.mcp, r: 16 })}${text(cx, 292, 'MCP client', { size: 24, fill: '#fff' })}${text(cx, 322, 'inside the host', { size: 16, fill: '#dbe7ff', weight: 400 })}</g>`;
+  o += `<g>${box(sx, 240, sw, 120, { stroke: C.mcp, r: 16 })}${text(sx + sw / 2, 292, 'GitHub', { size: 26 })}${text(sx + sw / 2, 322, 'MCP server', { size: 20, fill: C.dim, weight: 400 })}</g>`;
+  o += cloud(1160, 290, 'GitHub API');
+  o += arrow(sx + sw + 2, 300, 1070, 300, { stroke: C.dim, sw: 3 });
+  if (step > 0) o += chip(W / 2, 112, ['', '1  Discover tools', '2  Model picks a tool', '3  Call (you approve)', '4  Fetch & return', '5  Answer'][step], C.gold, 1, 340);
+  // you ask
+  if (lt < 3.4) o += bubble(30, 330, 290, 74, ['Summarise my', 'open pull requests'], { op: fade(lt, .3) * fout(lt, 2.9, 3.4) });
+  // 1: discover
+  o += packet(cx + 100, yA, sx, yA, prog(lt, 3.2, 4.4), 'tools/list');
+  o += packet(sx, yB, cx + 100, yB, prog(lt, 4.6, 5.8), 'tools');
+  if (lt > 5.8 && lt < 9.5) o += `<g opacity="${fade(lt, 5.8)}">${box(sx - 20, 400, 240, 90, { fill: '#0e0e1c', stroke: C.gold, r: 12 })}${text(sx + 100, 430, 'Menu:', { size: 18, fill: C.dim, weight: 400 })}${text(sx + 100, 458, 'list_pull_requests', { size: 19, fill: C.gold, mono: true })}${text(sx + 100, 480, 'get_file …', { size: 16, fill: C.dim, mono: true, weight: 400 })}</g>`;
+  // 2: decide
+  if (thinking) o += `<g opacity="${fade(lt, 6.7)}">${box(hx + 150, 400, 300, 52, { fill: '#fff', stroke: '#fff', r: 14 })}${text(hx + 300, 434, 'Use list_pull_requests', { size: 20, fill: '#1a1a2e' })}</g>`;
+  // 3: approve + call
+  if (lt >= 9.5 && lt < 13) o += `<g opacity="${fade(lt, 9.6)}">${box(hx + 150, 400, 300, 56, { fill: '#0e0e1c', stroke: C.gpt, r: 12 })}${text(hx + 300, 436, '✔ You approve this call', { size: 20, fill: C.gpt })}</g>`;
+  o += packet(cx + 100, yA, sx, yA, prog(lt, 10.6, 11.9), 'tools/call');
+  // 4: GitHub + result
+  o += packet(sx + sw, 285, 1070, 285, prog(lt, 13.2, 14.2), 'GET /pulls', { fill: C.purple, w: 130 });
+  o += packet(1070, 325, sx + sw, 325, prog(lt, 14.4, 15.4), '3 PRs', { fill: C.purple, w: 90 });
+  o += packet(sx, yB, cx + 100, yB, prog(lt, 15.5, 16.5), 'result', { fill: C.gpt });
+  // 5: answer
+  if (lt >= 16.6) o += bubble(30, 318, 340, 84, ['3 open PRs: 1 needs review,', '2 are waiting on CI ✔'], { op: fade(lt, 16.8), size: 20 });
+  return o;
+}
+
+function sceneBoth(t) { // 54-61
+  const lt = t - 54, sx = 800;
+  let o = title('Build once, plug in anywhere', t, 54, 61);
+  o += stick(150, 330, { color: C.claude, label: 'Claude', aR: 60 + Math.sin(lt * 4) * 10 });
+  o += stick(150, 580, { color: C.gpt, label: 'ChatGPT', aR: 60 + Math.sin(lt * 4 + 1) * 10 });
+  [[290, .3], [490, .8]].forEach(([y, d]) => { o += `<g opacity="${fade(lt, d)}">${box(430, y, 160, 70, { fill: C.mcp, stroke: C.mcp, r: 14 })}${text(510, y + 43, 'MCP client', { size: 22, fill: '#fff' })}</g>`; });
+  o += arrow(215, 290, 428, 325, { p: ease(prog(lt, .8, 1.5)), stroke: C.dim, sw: 3 });
+  o += arrow(215, 540, 428, 525, { p: ease(prog(lt, 1.2, 1.9)), stroke: C.dim, sw: 3 });
+  o += serverBox(sx, 345, 330, 110, 'GitHub MCP server', 'written once', C.mcp, fade(lt, 1.6));
+  o += arrow(592, 325, sx - 2, 380, { p: ease(prog(lt, 2.2, 3)), stroke: C.gold });
+  o += arrow(592, 525, sx - 2, 425, { p: ease(prog(lt, 2.6, 3.4)), stroke: C.gold });
+  o += `<g opacity="${fade(lt, 3.6)}">${text(965, 530, 'Same server.', { size: 38, fill: C.mcp })}${text(965, 575, 'Any MCP‑capable assistant.', { size: 26, weight: 400 })}</g>`;
+  return o;
+}
+
+function sceneRecap(t) { // 61-68
+  const lt = t - 61;
+  let o = text(W / 2, 100, 'MCP in 3 lines', { size: 56, op: fade(lt, 0) });
+  [['1', 'Host + client', 'Claude or ChatGPT speaks MCP from the inside', C.claude],
+   ['2', 'Servers', 'Wrap your tools and data: GitHub, files, databases', C.mcp],
+   ['3', 'One protocol', 'Discover → decide → call → answer', C.gold]].forEach(([n, a, b, c], i) => {
+    const y = 180 + i * 115;
+    o += `<g opacity="${fade(lt, .6 + i * .7)}"><circle cx="190" cy="${y + 28}" r="34" fill="${c}"/>${text(190, y + 42, n, { size: 40, fill: '#1a1a2e' })}${text(260, y + 24, a, { size: 38, anchor: 'start' })}${text(260, y + 62, b, { size: 24, fill: C.dim, anchor: 'start', weight: 400 })}</g>`;
+  });
+  o += stick(1090, 540, { s: 1.25, color: C.claude, aR: 150 + Math.sin(lt * 6) * 25, aL: 150 - Math.sin(lt * 6) * 25, op: fade(lt, 2.4) });
+  o += `<g opacity="${fade(lt, 3.4)}">${text(560, 560, 'AI Command Desk', { size: 44, fill: C.mcp })}${text(560, 598, 'aicommanddesk.com', { size: 26, fill: C.dim, weight: 400 })}</g>`;
+  return o;
+}
+
+const DURATION = 68;
+const CUTS = [8, 15, 24, 34, 54, 61];
+function frame(t) {
+  let o = `<rect width="${W}" height="${H}" fill="${C.bg}"/>`;
+  o += t < 8 ? sceneIntro(t) : t < 15 ? scenePain(t) : t < 24 ? sceneFix(t) : t < 34 ? sceneArch(t) : t < 54 ? sceneWalk(t) : t < 61 ? sceneBoth(t) : sceneRecap(t);
+  o += caption(t);
+  CUTS.forEach(b => { const d = Math.abs(t - b); if (d < .2) o += `<rect width="${W}" height="${H}" fill="${C.bg}" opacity="${1 - d / .2}"/>`; });
+  return o;
+}
+function render(t) { document.getElementById('s').innerHTML = frame(t); }
+window.render = render;
+window.DURATION = DURATION;
+render(+(new URLSearchParams(location.search).get('t') || 0));
+</script>
+</body>
+</html>
